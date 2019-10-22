@@ -46,6 +46,13 @@ You can configure the following values for the Alertmanager app:
 | `severityCritical` | Value of the severity label for an critical alert. | `critical` |
 | `titleTemplate` | Template for the title. The template can use the name of the Alertmanager and the group labels. | `[{{ name }}] {% for key, value in labels %} {{ key }}: {{ value }} {% endfor %}` |
 | `alertTemplate` | Template for a single alert. The template can use the annotations and labels of the alert. | `{% for key, value in annotations %} {{ key }}: {{ value }} {% endfor %}` |
+| `themeBg` | Background color. | `#2E3440` |
+| `themeBgLight` | Light background color. | `#3B4252` |
+| `themeFg` | Foreground color. | `#ECEFF4` |
+| `themeInfo` | Info color. | `#5E81AC` |
+| `themeWarning` | Warning color. | `#EBCB8B` |
+| `themeError` | Error color. | `#D08770` |
+| `themeCritical` | Critical color. | `#BF616A` |
 | `alertmanagers` | List of Alertmanagers. | **Required** |
 
 ### Alertmanager

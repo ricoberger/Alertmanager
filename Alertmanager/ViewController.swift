@@ -82,20 +82,20 @@ class ViewController: NSViewController, WKNavigationDelegate {
         <head>
         <style>
         body {
-            background-color: #2E3440;
-            color: #ECEFF4;
+        background-color: \(Alerts.sharedInstance.config.themeBg);
+            color: \(Alerts.sharedInstance.config.themeFg);
             font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
             font-size: 12px;
         }
         a {
-            color: #ECEFF4;
+            color: \(Alerts.sharedInstance.config.themeFg);
             text-decoration: none;
         }
         hr.divider {
-            border: 1px solid #3B4252;
+            border: 1px solid \(Alerts.sharedInstance.config.themeBgLight);
         }
         .error {
-            background-color: #BF616A;
+            background-color: \(Alerts.sharedInstance.config.themeCritical);
             padding: 5px;
         }
         </style>
@@ -121,26 +121,26 @@ class ViewController: NSViewController, WKNavigationDelegate {
         // If there is no label for the severity configured we return the "info" color.
         // When the label is configured we return the corresponding color for the levels "info", "warning", "error" and "critical".
         if Alerts.sharedInstance.config.severityLabel == "" {
-            return "#5E81AC"
+            return Alerts.sharedInstance.config.themeInfo
         }
         
         if alert.labels[Alerts.sharedInstance.config.severityLabel] == Alerts.sharedInstance.config.severityInfo {
-            return "#5E81AC"
+            return Alerts.sharedInstance.config.themeInfo
         }
         
         if alert.labels[Alerts.sharedInstance.config.severityLabel] == Alerts.sharedInstance.config.severityWarning {
-            return "#EBCB8B"
+            return Alerts.sharedInstance.config.themeWarning
         }
         
         if alert.labels[Alerts.sharedInstance.config.severityLabel] == Alerts.sharedInstance.config.severityError {
-            return "#D08770"
+            return Alerts.sharedInstance.config.themeError
         }
         
         if alert.labels[Alerts.sharedInstance.config.severityLabel] == Alerts.sharedInstance.config.severityCritical {
-            return "#BF616A"
+            return Alerts.sharedInstance.config.themeCritical
         }
         
-        return "#5E81AC"
+        return Alerts.sharedInstance.config.themeInfo
     }
 }
 

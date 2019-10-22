@@ -18,18 +18,36 @@ struct Config: Codable {
     var titleTemplate: String
     var alertTemplate: String
     var alertmanagers: Alertmanagers
+    var themeBg: String
+    var themeBgLight: String
+    var themeFg: String
+    var themeInfo: String
+    var themeWarning: String
+    var themeError: String
+    var themeCritical: String
     
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         
         self.refreshInterval = try values.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 60
+        
         self.severityLabel = try values.decodeIfPresent(String.self, forKey: .severityLabel) ?? ""
         self.severityInfo = try values.decodeIfPresent(String.self, forKey: .severityInfo) ?? "info"
         self.severityWarning = try values.decodeIfPresent(String.self, forKey: .severityWarning) ?? "warning"
         self.severityError = try values.decodeIfPresent(String.self, forKey: .severityError) ?? "error"
         self.severityCritical = try values.decodeIfPresent(String.self, forKey: .severityCritical) ?? "critical"
+        
         self.titleTemplate = try values.decodeIfPresent(String.self, forKey: .titleTemplate) ?? "[{{ name }}] {% for key, value in labels %} {{ key }}: {{ value }} {% endfor %}"
         self.alertTemplate = try values.decodeIfPresent(String.self, forKey: .alertTemplate) ?? "{% for key, value in annotations %} {{ key }}: {{ value }} {% endfor %}"
+        
+        self.themeBg = try values.decodeIfPresent(String.self, forKey: .themeBg) ?? "#2E3440"
+        self.themeBgLight = try values.decodeIfPresent(String.self, forKey: .themeBgLight) ?? "#3B4252"
+        self.themeFg = try values.decodeIfPresent(String.self, forKey: .themeFg) ?? "#ECEFF4"
+        self.themeInfo = try values.decodeIfPresent(String.self, forKey: .themeInfo) ?? "#5E81AC"
+        self.themeWarning = try values.decodeIfPresent(String.self, forKey: .themeWarning) ?? "#EBCB8B"
+        self.themeError = try values.decodeIfPresent(String.self, forKey: .themeError) ?? "#D08770"
+        self.themeCritical = try values.decodeIfPresent(String.self, forKey: .themeCritical) ?? "#BF616A"
+        
         self.alertmanagers = try values.decode(Alertmanagers.self, forKey: .alertmanagers)
     }
 }
