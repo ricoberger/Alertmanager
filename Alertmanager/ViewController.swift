@@ -53,27 +53,15 @@ class ViewController: NSViewController, WKNavigationDelegate {
                     for alertGroup in alertmanager.alertGroups {
                         output = output + "<div style=\"border-left: 5px solid \(severity(alert: alertGroup.alerts[0])); padding-left: 5px;\">"
                         
-                        // Use the default title template if the configured title template is empty.
-                        var titleTemplate = Alerts.sharedInstance.config.titleTemplate
-                        if titleTemplate == "" {
-                            titleTemplate = "[{{name}}] {% for key, value in labels %} {{ key }}: {{ value }} {% endfor %}"
-                        }
-                        
                         let titleContext = ["name": alertmanager.name, "labels": alertGroup.labels] as [String : Any]
-                        let title = try environment.renderTemplate(string: titleTemplate, context: titleContext)
+                        let title = try environment.renderTemplate(string: Alerts.sharedInstance.config.titleTemplate, context: titleContext)
                         
                         output = output + "<p><b>\(title)</b></p>"
                         output = output + "<ul>"
                         
                         for alert in alertGroup.alerts {
-                            // Use the default alert template if the configured alert template is empty.
-                            var alertTemplate = Alerts.sharedInstance.config.alertTemplate
-                            if alertTemplate == "" {
-                                alertTemplate = "{% for key, value in annotations %} {{ key }}: {{ value }} {% endfor %}"
-                            }
-
                             let contentContext = ["annotations": alert.annotations, "labels": alert.labels] as [String : Any]
-                            let content = try environment.renderTemplate(string: alertTemplate, context: contentContext)
+                            let content = try environment.renderTemplate(string: Alerts.sharedInstance.config.alertTemplate, context: contentContext)
                             
                             output = output + "<li>\(content)</li>"
                         }
