@@ -25,11 +25,19 @@ class Alerts {
         timer = Timer.scheduledTimer(timeInterval: interval, target: self, selector: #selector(self.loadAlerts), userInfo: nil, repeats: true)
     }
     
-    private func loadConfig() {
+    func loadConfig() {
         do {
-            // load the ".alertmanager.json" configuration file from the users home directory and decode the content into our config struct.
             let home = NSHomeDirectory()
-            let conf = try String(contentsOfFile: home + "/.alertmanager.json", encoding: String.Encoding.utf8)
+            let configFilePath = home + "/.alertmanager.json"
+            
+            // Check if the ".alertmanager.json" file exists. If no, create the file with the default configuration.
+            if (!FileManager.default.fileExists(atPath: configFilePath)) {
+                let file = FileManager()
+                file.createFile(atPath: configFilePath, contents: Data(base64Encoded: "ewogICJyZWZyZXNoSW50ZXJ2YWwiOiA2MCwKICAic2V2ZXJpdHlMYWJlbCI6ICJzZXZlcml0eSIsCiAgInNldmVyaXR5SW5mbyI6ICJpbmZvIiwKICAic2V2ZXJpdHlXYXJuaW5nIjogIndhcm5pbmciLAogICJzZXZlcml0eUVycm9yIjogImVycm9yIiwKICAic2V2ZXJpdHlDcml0aWNhbCI6ICJjcml0aWNhbCIsCiAgInRpdGxlVGVtcGxhdGUiOiAiW3t7IG5hbWUgfCB1cHBlcmNhc2UgfX1dIFt7eyBsYWJlbHNbJ2NsdXN0ZXInXSB8IHVwcGVyY2FzZSB9fV0ge3sgbGFiZWxzWydhbGVydG5hbWUnXSB9fSIsCiAgImFsZXJ0VGVtcGxhdGUiOiAie3sgYW5ub3RhdGlvbnNbJ21lc3NhZ2UnXSB9fSIsCgogICJhbGVydG1hbmFnZXJzIjogWwogICAgewogICAgICAibmFtZSI6ICJBbGVydG1hbmFnZXIiLAogICAgICAidXJsIjogImh0dHA6Ly9sb2NhbGhvc3Q6OTA5MyIKICAgIH0KICBdCn0="))
+            }
+            
+            // Load the ".alertmanager.json" configuration file from the users home directory and decode the content into our config struct.
+            let conf = try String(contentsOfFile: configFilePath, encoding: String.Encoding.utf8)
             let decoder = JSONDecoder()
             self.config = try decoder.decode(Config.self, from: conf.data(using: .utf8)!)
         } catch {

@@ -6,7 +6,11 @@ The **Alertmanager for macOS** is a small macOS application which shows alerts f
 
 ## Usage
 
-Create a new file called `.alertmanager.json` in your home directory and provide a configuration for the Alertmanager app. An example config can be found in the following code block. For all available options take a look at the [configuration](#configuration) section.
+Download the latest release of the Alertmanager for macOS from the [releases](https://github.com/ricoberger/Alertmanager/releases) page. Unpack the downloaded ZIP file and start the app.
+
+During the first start a file called `.alertmanager.json` will be created in you home directory. Right click on the symbol of the Alertmanager for macOS in the status bar and choose `Open Configuration`. This will open the configuration file in your default editor. After you have adjusted the configuration right click on the symbol again and choose `Reload Configuration`.
+
+An example configuration can be found in the following code block. For all available options take a look at the [configuration](#configuration) section.
 
 ```json
 {
@@ -27,8 +31,6 @@ Create a new file called `.alertmanager.json` in your home directory and provide
   ]
 }
 ```
-
-Next go to the [releases](https://github.com/ricoberger/Alertmanager/releases) page and download the latest version of the Alertmanager app. Unpack the downloaded ZIP file and start the app.
 
 ## Configuration
 
