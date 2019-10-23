@@ -75,19 +75,30 @@ struct Alertmanager: Codable {
     }
 }
 
-struct AlertmanagerAlerts {
-    var name: String
-    var url: String
-    var alertGroups: [AlertGroup]
-}
-
 typealias AlertGroups = [AlertGroup]
 
-public struct AlertGroup: Codable {
+struct AlertGroup: Codable {
+    var alertmanagerName: String
+    var alertmanagerURL: String
+    var startsAt: String
     var labels: [String:String]
     var receiver: Receiver
     var alerts: [Alert]
+    
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        
+        self.alertmanagerName = try values.decodeIfPresent(String.self, forKey: .alertmanagerName) ?? ""
+        self.alertmanagerURL = try values.decodeIfPresent(String.self, forKey: .alertmanagerURL) ?? ""
+        self.startsAt = try values.decodeIfPresent(String.self, forKey: .startsAt) ?? ""
+        
+        self.labels = try values.decode([String:String].self, forKey: .labels)
+        self.receiver = try values.decode(Receiver.self, forKey: .receiver)
+        self.alerts = try values.decode(AlertGroupAlerts.self, forKey: .alerts)
+    }
 }
+
+typealias AlertGroupAlerts = [Alert]
 
 public struct Alert: Codable {
     var annotations: [String:String]

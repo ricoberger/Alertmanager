@@ -52,27 +52,25 @@ class ViewController: NSViewController, WKNavigationDelegate {
                     output = printError(error: error)
                 }
                 
-                // Loop through each configured Alertmanager and loaded alert groups and build the HTML output string.
-                for alertmanager in Alerts.sharedInstance.alertmanagerAlerts {
-                    for alertGroup in alertmanager.alertGroups {
-                        output = output + "<div style=\"border-left: 5px solid \(severity(alert: alertGroup.alerts[0])); padding-left: 5px;\">"
+                // Loop through each alert group and build the HTML output string.
+                for alertGroup in Alerts.sharedInstance.alertGroups {
+                    output = output + "<div style=\"border-left: 5px solid \(severity(alert: alertGroup.alerts[0])); padding-left: 5px;\">"
+                    
+                    let titleContext = ["name": alertGroup.alertmanagerName, "labels": alertGroup.labels] as [String : Any]
+                    let title = try environment.renderTemplate(string: Alerts.sharedInstance.config.titleTemplate, context: titleContext)
+                    
+                    output = output + "<p><b>\(title)</b></p>"
+                    output = output + "<ul>"
+                    
+                    for alert in alertGroup.alerts {
+                        let contentContext = ["annotations": alert.annotations, "labels": alert.labels] as [String : Any]
+                        let content = try environment.renderTemplate(string: Alerts.sharedInstance.config.alertTemplate, context: contentContext)
                         
-                        let titleContext = ["name": alertmanager.name, "labels": alertGroup.labels] as [String : Any]
-                        let title = try environment.renderTemplate(string: Alerts.sharedInstance.config.titleTemplate, context: titleContext)
-                        
-                        output = output + "<p><b>\(title)</b></p>"
-                        output = output + "<ul>"
-                        
-                        for alert in alertGroup.alerts {
-                            let contentContext = ["annotations": alert.annotations, "labels": alert.labels] as [String : Any]
-                            let content = try environment.renderTemplate(string: Alerts.sharedInstance.config.alertTemplate, context: contentContext)
-                            
-                            output = output + "<li>\(content)</li>"
-                        }
-                        
-                        output = output + "</ul>"
-                        output = output + "</div><hr class=\"divider\">"
+                        output = output + "<li>\(content)</li>"
                     }
+                    
+                    output = output + "</ul>"
+                    output = output + "</div><hr class=\"divider\">"
                 }
             } catch {
                 output = printError(error: error.localizedDescription)

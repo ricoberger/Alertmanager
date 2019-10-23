@@ -11,7 +11,7 @@ import Foundation
 class Alerts {
     static let sharedInstance: Alerts = Alerts()
     var timer = Timer()
-    var alertmanagerAlerts: [AlertmanagerAlerts] = []
+    var alertGroups: AlertGroups = []
     var configError: String = ""
     var loadErrors: [String] = []
     var config: Config!
@@ -33,13 +33,29 @@ class Alerts {
             let decoder = JSONDecoder()
             self.config = try decoder.decode(Config.self, from: conf.data(using: .utf8)!)
         } catch {
+            self.showNotification(title: "Could not load configuration", informativeText: "Could not load configuration: " + error.localizedDescription)
             self.configError = "Could not load configuration: " + error.localizedDescription
         }
     }
     
+    func showNotification(title: String, informativeText: String) -> Void {
+        let notification = NSUserNotification()
+
+        notification.title = title
+        notification.informativeText = informativeText
+        notification.soundName = NSUserNotificationDefaultSoundName
+
+        NSUserNotificationCenter.default.deliver(notification)
+    }
+    
     @objc func loadAlerts() {
+        var newestAlert = ""
+        if self.alertGroups.count > 0 {
+            newestAlert = self.alertGroups[0].startsAt
+        }
+        
         self.loadErrors = []
-        self.alertmanagerAlerts = []
+        self.alertGroups = []
         
         // Load the alert groups for each configured alertmanager.
         for alertmanager in self.config.alertmanagers {
@@ -61,10 +77,9 @@ class Alerts {
             
             let task = session.dataTask(with: request) {(data, response, error) in
                 // Decode the received json response into the alertGroups struct and add these groups + some Alertmanager details
-                // to a list of alertmanagers.
-                // NOTE: This should be changed to use a list of alert groups and add the Alertmanager name and url to these groups,
-                // so we can sort the list by time.
+                // to a list of alert groups.
                 guard let dataResponse = data, error == nil else {
+                    self.showNotification(title: "Could not load alerts", informativeText: "Could not load alerts for " + alertmanager.name + ": " + (error?.localizedDescription ?? "Response Error"))
                     self.loadErrors.append("Could not load alerts for " + alertmanager.name + ": " + (error?.localizedDescription ?? "Response Error"))
                     return
                 }
@@ -72,10 +87,25 @@ class Alerts {
                 do {
                     let stringData = String(data: dataResponse, encoding: .utf8)!
                     let decoder = JSONDecoder()
-                    let alertGroups = try decoder.decode(AlertGroups.self, from: stringData.data(using: .utf8)!)
+                    var alertGroups = try decoder.decode(AlertGroups.self, from: stringData.data(using: .utf8)!)
                     
-                    self.alertmanagerAlerts.append(AlertmanagerAlerts(name: alertmanager.name, url: alertmanager.url, alertGroups: alertGroups))
+                    for (index, _) in alertGroups.enumerated() {
+                        alertGroups[index].alertmanagerName = alertmanager.name
+                        alertGroups[index].alertmanagerURL = alertmanager.url
+                        alertGroups[index].alerts = alertGroups[index].alerts.sorted(by: { $0.startsAt > $1.startsAt })
+                        alertGroups[index].startsAt = alertGroups[index].alerts[0].startsAt
+                    }
+                    
+                    // Concatenate all alert groups from all Alertmanager instances and sort them.
+                    // Then check if there is a newer alert in the list as in the old list. If yes, show a notification.
+                    self.alertGroups.append(contentsOf: alertGroups)
+                    self.alertGroups = self.alertGroups.sorted(by: { $0.startsAt > $1.startsAt })
+                    
+                    if newestAlert != "" && alertGroups.count > 0 && alertGroups[0].startsAt > newestAlert {
+                        self.showNotification(title: "New alerts", informativeText: "New alerts for " + alertGroups[0].alertmanagerName)
+                    }
                 } catch {
+                    self.showNotification(title: "Could not load alerts", informativeText: "Could not load alerts for " + alertmanager.name + ": " + error.localizedDescription)
                     self.loadErrors.append("Could not load alerts for " + alertmanager.name + ": " + error.localizedDescription)
                 }
             }
