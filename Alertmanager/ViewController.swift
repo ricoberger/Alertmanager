@@ -46,8 +46,12 @@ class ViewController: NSViewController, WKNavigationDelegate {
         
         // Check if there was an error while loading the alerts.
         // If yes, we render the error. If no, we build the HTML string for rendering the alerts.
-        if Alerts.sharedInstance.error == "" {
+        if Alerts.sharedInstance.configError == "" {
             do {
+                for error in Alerts.sharedInstance.loadErrors {
+                    output = printError(error: error)
+                }
+                
                 // Loop through each configured Alertmanager and loaded alert groups and build the HTML output string.
                 for alertmanager in Alerts.sharedInstance.alertmanagerAlerts {
                     for alertGroup in alertmanager.alertGroups {
@@ -71,10 +75,10 @@ class ViewController: NSViewController, WKNavigationDelegate {
                     }
                 }
             } catch {
-                output = "<div class=\"error\">\(error.localizedDescription)</div><hr class=\"divider\">"
+                output = printError(error: error.localizedDescription)
             }
         } else {
-            output = "<div class=\"error\">\(Alerts.sharedInstance.error)</div><hr class=\"divider\">"
+            output = printError(error: Alerts.sharedInstance.configError)
         }
         
         let text = """
@@ -115,6 +119,10 @@ class ViewController: NSViewController, WKNavigationDelegate {
         // textView.textStorage?.setAttributedString(attributedString)
         
         webView.loadHTMLString(text, baseURL: nil)
+    }
+    
+    func printError(error: String) -> String {
+        return "<div class=\"error\">\(error)</div><hr class=\"divider\">"
     }
     
     func severity(alert: Alert) -> String {

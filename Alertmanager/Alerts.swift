@@ -12,7 +12,8 @@ class Alerts {
     static let sharedInstance: Alerts = Alerts()
     var timer = Timer()
     var alertmanagerAlerts: [AlertmanagerAlerts] = []
-    var error: String = ""
+    var configError: String = ""
+    var loadErrors: [String] = []
     var config: Config!
     
     private init() {
@@ -32,12 +33,12 @@ class Alerts {
             let decoder = JSONDecoder()
             self.config = try decoder.decode(Config.self, from: conf.data(using: .utf8)!)
         } catch {
-            self.error = error.localizedDescription
+            self.configError = "Could not load configuration: " + error.localizedDescription
         }
     }
     
     @objc func loadAlerts() {
-        self.error = ""
+        self.loadErrors = []
         self.alertmanagerAlerts = []
         
         // Load the alert groups for each configured alertmanager.
@@ -64,7 +65,7 @@ class Alerts {
                 // NOTE: This should be changed to use a list of alert groups and add the Alertmanager name and url to these groups,
                 // so we can sort the list by time.
                 guard let dataResponse = data, error == nil else {
-                    self.error = error?.localizedDescription ?? "Response Error"
+                    self.loadErrors.append("Could not load alerts for " + alertmanager.name + ": " + (error?.localizedDescription ?? "Response Error"))
                     return
                 }
                 
@@ -75,7 +76,7 @@ class Alerts {
                     
                     self.alertmanagerAlerts.append(AlertmanagerAlerts(name: alertmanager.name, url: alertmanager.url, alertGroups: alertGroups))
                 } catch {
-                    self.error = error.localizedDescription
+                    self.loadErrors.append("Could not load alerts for " + alertmanager.name + ": " + error.localizedDescription)
                 }
             }
 
