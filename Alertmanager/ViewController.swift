@@ -63,7 +63,7 @@ class ViewController: NSViewController, WKNavigationDelegate {
                     output = output + "<ul>"
                     
                     for alert in alertGroup.alerts {
-                        let contentContext = ["annotations": alert.annotations, "labels": alert.labels] as [String : Any]
+                        let contentContext = ["annotations": alert.annotations, "labels": alert.labels, "generatorURL": alert.generatorURL] as [String : Any]
                         let content = try environment.renderTemplate(string: Alerts.sharedInstance.config.alertTemplate, context: contentContext)
                         
                         output = output + "<li>\(content)</li>"
@@ -147,6 +147,16 @@ class ViewController: NSViewController, WKNavigationDelegate {
         }
         
         return Alerts.sharedInstance.config.themeInfo
+    }
+    
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        if navigationAction.navigationType == .linkActivated  {
+            let url = navigationAction.request.url!
+            NSWorkspace.shared.open(url)
+            decisionHandler(.cancel)
+        } else {
+            decisionHandler(.allow)
+        }
     }
 }
 
