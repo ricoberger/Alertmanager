@@ -56,7 +56,7 @@ class ViewController: NSViewController, WKNavigationDelegate {
                 for alertGroup in Alerts.sharedInstance.alertGroups {
                     output = output + "<div style=\"border-left: 5px solid \(severity(alert: alertGroup.alerts[0])); padding-left: 5px;\">"
                     
-                    let titleContext = ["name": alertGroup.alertmanagerName, "labels": alertGroup.labels] as [String : Any]
+                    let titleContext = ["name": alertGroup.alertmanagerName, "url": alertGroup.alertmanagerURL, "labels": alertGroup.labels] as [String : Any]
                     let title = try environment.renderTemplate(string: Alerts.sharedInstance.config.titleTemplate, context: titleContext)
                     
                     output = output + "<p><b>\(title)</b></p>"

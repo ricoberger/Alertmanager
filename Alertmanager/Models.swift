@@ -91,7 +91,7 @@ struct AlertGroup: Codable {
         self.alertmanagerName = try values.decodeIfPresent(String.self, forKey: .alertmanagerName) ?? ""
         self.alertmanagerURL = try values.decodeIfPresent(String.self, forKey: .alertmanagerURL) ?? ""
         self.startsAt = try values.decodeIfPresent(String.self, forKey: .startsAt) ?? ""
-        
+
         self.labels = try values.decode([String:String].self, forKey: .labels)
         self.receiver = try values.decode(Receiver.self, forKey: .receiver)
         self.alerts = try values.decode(AlertGroupAlerts.self, forKey: .alerts)
@@ -100,7 +100,7 @@ struct AlertGroup: Codable {
 
 typealias AlertGroupAlerts = [Alert]
 
-public struct Alert: Codable {
+struct Alert: Codable {
     var annotations: [String:String]
     var endsAt: String
     var fingerprint: String
