@@ -46,8 +46,8 @@ You can configure the following values for the Alertmanager app:
 | `severityWarning` | Value of the severity label for an warning alert. | `warning` |
 | `severityError` | Value of the severity label for an error alert. | `error` |
 | `severityCritical` | Value of the severity label for an critical alert. | `critical` |
-| `titleTemplate` | Template for the title. The template can use the name of the Alertmanager and the group labels. | `[{{ name }}] {% for key, value in labels %} {{ key }}: {{ value }} {% endfor %}` |
-| `alertTemplate` | Template for a single alert. The template can use the annotations and labels of the alert. | `{% for key, value in annotations %} {{ key }}: {{ value }} {% endfor %}` |
+| `titleTemplate` | Template for the title. The template can use the name of the Alertmanager and the group labels. (see [Templates](#templates)) | `[{{ name }}] {% for key, value in labels %} {{ key }}: {{ value }} {% endfor %}` |
+| `alertTemplate` | Template for a single alert. The template can use the annotations and labels of the alert. (see [Templates](#templates)) | `{% for key, value in annotations %} {{ key }}: {{ value }} {% endfor %}` |
 | `themeBg` | Background color. | `#2E3440` |
 | `themeBgLight` | Light background color. | `#3B4252` |
 | `themeFg` | Foreground color. | `#ECEFF4` |
@@ -55,7 +55,7 @@ You can configure the following values for the Alertmanager app:
 | `themeWarning` | Warning color. | `#EBCB8B` |
 | `themeError` | Error color. | `#D08770` |
 | `themeCritical` | Critical color. | `#BF616A` |
-| `alertmanagers` | List of Alertmanagers. | **Required** |
+| `alertmanagers` | List of Alertmanagers (see [Alertmanager](#alertmanager)). | **Required** |
 
 ### Alertmanager
 
@@ -67,3 +67,35 @@ You can configure the following values for the Alertmanager app:
 | `authUsername` | If basic auth is used this is the username which should be used. | |
 | `authPassword` | If basic auth is used this is the password which should be used. | |
 | `authToken` | If token auth is used this is the token which should be used. | |
+
+### Templates
+
+We are using [the Stencil template language](https://stencil.fuller.li/en/latest/) to render the alerts. You can use all built in [tags](https://stencil.fuller.li/en/latest/builtins.html#built-in-tags) and [filters](https://stencil.fuller.li/en/latest/builtins.html#built-in-filters) for your templates.
+
+#### titleTemplate
+
+The `titleTemplate` is used to render the alert group title. The following variables are available in `titleTemplate`:
+
+- `name`: Name of the Alertmanager from the configuration file.
+- `url`: URL of the Alertmanager from the configuration file.
+- `labels`: Labels which indicates the alert group. This is configured in your Alertmanager with the `group_by` option.
+
+```json
+{
+  "titleTemplate": "<a href='{{ url }}'>[{{ name | uppercase }}] {{ labels['alertname'] }}</a>"
+}
+```
+
+#### alertTemplate
+
+The `alertTemplate` is used to render a single alert in the list of alerts. The following variables are available in `alertTemplate`:
+
+- `annotations`: Configured annotations for the alert.
+- `labels`: Labels of the alert.
+- `generatorURL`: Identifies the entity that caused the alert. 
+
+```json
+{
+  "alertTemplate": "<a href='{{ generatorURL }}'>{{ annotations['message'] }}</a>"
+}
+```
