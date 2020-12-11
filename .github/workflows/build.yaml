@@ -26,7 +26,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: Alertmanager.zip
-          path: ${GITHUB_WORKSPACE}/Alertmanager.zip
+          path: Alertmanager.zip
 
       - name: Upload Release
         if: ${{ github.event_name == 'release' && github.event.action == 'created' }}
