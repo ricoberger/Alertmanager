@@ -1,26 +1,35 @@
 name: Build
 
 on:
+  pull_request:
   release:
     types: [created]
 
 jobs:
   build:
     name: Build and upload Alertmanager.app
-    runs-on: macOS-latest
+    runs-on: macos-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v1
 
       - name: Build
         run: |
-          /Applications/Xcode_11.1.app/Contents/Developer/usr/bin/xcodebuild -workspace Alertmanager.xcodeproj/project.xcworkspace -scheme Alertmanager archive -configuration release -archivePath Alertmanager.xcarchive
+          xcodebuild -workspace Alertmanager.xcodeproj/project.xcworkspace -scheme Alertmanager archive -configuration release -archivePath Alertmanager.xcarchive
 
       - name: Compress
         run: |
           cd Alertmanager.xcarchive/Products/Applications/; zip -r ${GITHUB_WORKSPACE}/Alertmanager.zip Alertmanager.app
 
-      - name: Upload to release
+      - name: Upload Artifact
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: Alertmanager.zip
+          path: Alertmanager.zip
+
+      - name: Upload Release
+        if: ${{ github.event_name == 'release' && github.event.action == 'created' }}
         run: ./upload.sh Alertmanager.zip application/zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
