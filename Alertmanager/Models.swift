@@ -57,6 +57,8 @@ typealias Alertmanagers = [Alertmanager]
 struct Alertmanager: Codable {
     var name: String
     var url: String
+    var silenced: String
+    var inhibited: String
     var authType: String
     var authUsername: String
     var authPassword: String
@@ -68,6 +70,8 @@ struct Alertmanager: Codable {
         
         self.name = try values.decode(String.self, forKey: .name)
         self.url = try values.decode(String.self, forKey: .url)
+        self.silenced = try values.decodeIfPresent(String.self, forKey: .silenced) ?? "false"
+        self.inhibited = try values.decodeIfPresent(String.self, forKey: .inhibited) ?? "false"
         self.authType = try values.decodeIfPresent(String.self, forKey: .authType) ?? ""
         self.authUsername = try values.decodeIfPresent(String.self, forKey: .authUsername) ?? ""
         self.authPassword = try values.decodeIfPresent(String.self, forKey: .authPassword) ?? ""

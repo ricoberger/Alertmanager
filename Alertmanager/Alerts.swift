@@ -68,7 +68,7 @@ class Alerts {
         // Load the alert groups for each configured alertmanager.
         for alertmanager in self.config.alertmanagers {
             let session = URLSession.shared
-            let url = URL(string: alertmanager.url + "/api/v2/alerts/groups")!
+            let url = URL(string: alertmanager.url + "/api/v2/alerts/groups?silenced=" + alertmanager.silenced + "&inhibited=" + alertmanager.inhibited)!
 
             var request = URLRequest(url: url)
             request.httpMethod = "GET"
