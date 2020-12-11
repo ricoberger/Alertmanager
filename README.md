@@ -63,6 +63,8 @@ You can configure the following values for the Alertmanager app:
 | ----- | ----------- | ------- |
 | `name` | Name of the Alertmanager. | **Required** |
 | `url` | URL of the Alertmanager. | **Required** |
+| `silenced` | Show silenced alerts. Must be `true` or `false` as *string*. | `false` |
+| `inhibited` | Show inhibited alerts. Must be `true` or `false` as *string*. | `false` |
 | `authType` | Authentication method which should be used to retrieve alerts. Possible values are `basic` and `token`. If not authentication is required omit this field. | |
 | `authUsername` | If basic auth is used this is the username which should be used. | |
 | `authPassword` | If basic auth is used this is the password which should be used. | |
