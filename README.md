@@ -26,6 +26,30 @@ and [Grafana Alerting](https://grafana.com/docs/grafana/latest/alerting/).
 - Import and export the full configuration (Alertmanagers, filters, settings) as
   JSON
 
+## Usage
+
+Download `Alertmanager.zip` from the latest
+[release](https://github.com/ricoberger/Alertmanager/releases), unzip it, and
+move `Alertmanager.app` to `/Applications`.
+
+Because the release build is ad-hoc signed (not notarized), macOS Gatekeeper
+attaches a quarantine attribute to the downloaded app. This must be removed
+before first launch — otherwise notifications will not be delivered, since
+path translocation prevents the app from registering a stable bundle identity
+with the notification subsystem:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Alertmanager.app
+```
+
+To add an Alertmanager instance, launch the app and choose
+**Alertmanager → Add Alertmanager** from the menu bar, then fill in the URL and
+(optional) authentication details.
+
+When the **Is Grafana** toggle is enabled, each entry in the **Grafana
+Alertmanagers** section is the UID of the corresponding Grafana datasource; use
+`grafana` to target the built-in Grafana Alertmanager.
+
 ## Development
 
 ```bash
