@@ -21,19 +21,85 @@ jobs:
         with:
           fetch-depth: 0
 
+      # See https://docs.github.com/de/actions/how-tos/deploy/deploy-to-third-party-platforms/sign-xcode-applications
+      - name: Install the Apple Certificate and Provisioning Profile
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          BUILD_PROVISION_PROFILE_BASE64:
+            ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          # Create variables
+          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
+          PP_PATH=$RUNNER_TEMP/build_pp.provisionprofile
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+
+          # Import certificate and provisioning profile from secrets
+          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
+          echo -n "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode -o $PP_PATH
+
+          # Create temporary keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+          # Import certificate to keychain
+          security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+
+          # Apply provisioning profile
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles
+
       - name: Test
         run: |
           xcodebuild -project Alertmanager.xcodeproj -scheme Alertmanager test \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" CODE_SIGN_ENTITLEMENTS=""
 
       - name: Build
+        env:
+          CODE_SIGNING_IDENTITY: ${{ secrets.CODE_SIGNING_IDENTITY }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           xcodebuild -project Alertmanager.xcodeproj -scheme Alertmanager -configuration Release archive -archivePath build/Alertmanager.xcarchive \
-            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=YES CODE_SIGNING_ALLOWED=YES DEVELOPMENT_TEAM=""
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="$CODE_SIGNING_IDENTITY" \
+            CODE_SIGNING_REQUIRED=YES \
+            CODE_SIGNING_ALLOWED=YES \
+            APPLE_TEAM_ID="$APPLE_TEAM_ID" \
+            OTHER_CODE_SIGN_FLAGS="--timestamp --options=runtime"
 
-      - name: Compress
+      - name: Notarize
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          cd build/Alertmanager.xcarchive/Products/Applications/; zip -r ${GITHUB_WORKSPACE}/Alertmanager.zip Alertmanager.app
+          APP_PATH="build/Alertmanager.xcarchive/Products/Applications/Alertmanager.app"
+          NOTARIZE_ZIP="${GITHUB_WORKSPACE}/Alertmanager.zip"
+
+          # Create a ZIP for notarization submission
+          ditto -c -k --keepParent "$APP_PATH" "$NOTARIZE_ZIP"
+
+          # Submit to Apple's notarization service and wait for the result
+          xcrun notarytool submit "$NOTARIZE_ZIP" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_ID_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+
+          # Staple the notarization ticket onto the app
+          xcrun stapler staple "$APP_PATH"
+
+          # Verify the staple and Gatekeeper acceptance
+          xcrun stapler validate "$APP_PATH"
+          spctl --assess --verbose=4 --type execute "$APP_PATH"
+
+      # - name: Compress
+      #   run: |
+      #     cd build/Alertmanager.xcarchive/Products/Applications/; zip -r ${GITHUB_WORKSPACE}/Alertmanager.zip Alertmanager.app
 
       - name: Upload Artifact
         if: ${{ github.event_name == 'pull_request' }}
@@ -48,3 +114,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release upload ${{ github.ref_name }} Alertmanager.zip
+
+      - name: Clean Up Keychain and Provisioning Profile
+        if: ${{ always() }}
+        run: |
+          security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
+          rm ~/Library/MobileDevice/Provisioning\ Profiles/build_pp.provisionprofile
