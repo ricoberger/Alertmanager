@@ -29,7 +29,7 @@ jobs:
       - name: Build
         run: |
           xcodebuild -project Alertmanager.xcodeproj -scheme Alertmanager -configuration Release archive -archivePath build/Alertmanager.xcarchive \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" CODE_SIGN_ENTITLEMENTS=""
+            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=YES CODE_SIGNING_ALLOWED=YES DEVELOPMENT_TEAM=""
 
       - name: Compress
         run: |
