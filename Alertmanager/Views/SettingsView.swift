@@ -55,8 +55,10 @@ struct SettingsView: View {
 
                 // Whether the alertmanager name is prepended to the alert
                 // title in each row. Disable to show only the alert name.
-                Toggle("Show Alertmanager Name in Alert Title", isOn: $settings.showAlertmanagerName)
-                    .accessibilityIdentifier("settings-show-alertmanager-name-toggle")
+                Toggle(
+                    "Show Alertmanager Name in Alert Title", isOn: $settings.showAlertmanagerName
+                )
+                .accessibilityIdentifier("settings-show-alertmanager-name-toggle")
 
             } header: {
                 Text("General")
@@ -143,13 +145,52 @@ struct SettingsView: View {
             } header: {
                 Text("Labels")
             }
+
+            Section {
+                // Master toggle for the AI feature. Controls whether the
+                // per-alert "Analyze" button is rendered at all — when
+                // off, the button is hidden everywhere in the app.
+                Toggle("Enabled", isOn: $settings.aiConfig.enabled)
+                    .accessibilityIdentifier("settings-ai-enabled-toggle")
+
+                // The service speaks the OpenAI Chat Completions wire
+                // format. OpenAI, Anthropic, Google's Gemini, Azure OpenAI,
+                // Ollama and vLLM all expose an OpenAI-compatible endpoint,
+                // so a single endpoint + key is enough — there is no
+                // per-vendor provider picker.
+                TextField("Endpoint", text: $settings.aiConfig.endpoint)
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityIdentifier("settings-ai-endpoint-field")
+                SecureField("API Key", text: $settings.aiConfig.apiKey)
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityIdentifier("settings-ai-api-key-field")
+                TextField("Model", text: $settings.aiConfig.model)
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityIdentifier("settings-ai-model-field")
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("System Prompt")
+                    // `TextField(axis: .vertical)` would normally grow with
+                    // content, but inside `Form(.grouped)` macOS injects
+                    // an environment-level control alignment that right-
+                    // aligns multi-line TextField content — and no public
+                    // SwiftUI modifier overrides it. `TextEditor` is not
+                    // subject to that override, so we use a TextEditor and
+                    // drive its height with an invisible `Text` mirror so
+                    // it grows with the prompt instead of scrolling.
+                    AutoSizingTextEditor(text: $settings.aiConfig.systemPrompt)
+                        .accessibilityIdentifier("settings-ai-system-prompt-editor")
+                }
+            } header: {
+                Text("AI")
+            }
         }
         .formStyle(.grouped)
         // Fixed width plus vertical-only fixedSize gives the standard macOS
         // Settings panel proportions while letting the form size itself to
         // its content height.
         .frame(width: 500)
-        .fixedSize(horizontal: false, vertical: true)
+        .frame(minHeight: 250, maxHeight: 500)
         .navigationTitle("Settings")
     }
 
@@ -163,6 +204,50 @@ struct SettingsView: View {
         )
         newLabelKey = ""
         newLabelColor = .gray
+    }
+}
+
+/// A self-sizing multi-line editor used by the AI section's System
+/// Prompt field.
+///
+/// SwiftUI's `TextEditor` always scrolls internally — its frame doesn't
+/// grow with the content. `TextField(axis: .vertical)` does grow but is
+/// forced to trailing alignment inside `Form(.grouped)` on macOS, with
+/// no public modifier to override.
+///
+/// The fix here is the standard SwiftUI trick: render an invisible
+/// `Text` mirror of the same content alongside the `TextEditor` in a
+/// `ZStack`. The `Text` dictates the intrinsic height because it
+/// supports `fixedSize(horizontal: false, vertical: true)`, and the
+/// `TextEditor` stretches to fill it — yielding an editor that grows
+/// line-by-line with the prompt and never needs internal scrolling.
+private struct AutoSizingTextEditor: View {
+    /// Two-way binding to the edited text.
+    @Binding var text: String
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            // Hidden Text view: same font + insets as the editor, holds
+            // the same content plus a trailing space so an empty prompt
+            // still reserves one line of height. `fixedSize(... vertical:
+            // true)` makes this view report its full unwrapped height.
+            Text(text.isEmpty ? " " : text + " ")
+                .font(.system(.body, design: .monospaced))
+                .padding(.horizontal, 5)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
+                .opacity(0)
+
+            TextEditor(text: $text)
+                .font(.system(.body, design: .monospaced))
+                .scrollContentBackground(.hidden)
+        }
+        .background(Color(NSColor.textBackgroundColor))
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+        )
     }
 }
 

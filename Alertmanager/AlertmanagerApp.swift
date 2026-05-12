@@ -102,6 +102,17 @@ struct AlertmanagerApp: App {
         .menuBarExtraStyle(.window)
         .modelContainer(sharedModelContainer)
 
+        // Per-alert AI analysis window. Opened from the "Analyze" button
+        // in `AlertRowView` via `openWindow(id:value:)`. One window per
+        // `AlertAnalysisContext` (alertmanagerID + fingerprint) — opening
+        // the same alert twice reuses the existing window.
+        WindowGroup(id: "analyze-alert", for: AlertAnalysisContext.self) { $context in
+            if let context = context {
+                AlertAnalysisView(context: context)
+            }
+        }
+        .modelContainer(sharedModelContainer)
+
         // Standard macOS Settings scene (⌘,). Shares the same container so
         // edits made here are immediately reflected elsewhere.
         Settings {

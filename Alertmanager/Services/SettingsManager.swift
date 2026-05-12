@@ -117,6 +117,19 @@ class SettingsManager: ObservableObject {
         }
     }
 
+    /// AI backend configuration used by the per-alert "Analyze" button.
+    /// Persisted as a JSON blob under `"aiConfig"` so the nested provider
+    /// enum + system prompt round-trip cleanly. Defaults to `AIConfig.default`
+    /// (OpenAI shape, empty key) on first launch — the analyze action is
+    /// disabled until `isUsable` is true.
+    @Published var aiConfig: AIConfig {
+        didSet {
+            if let data = try? JSONEncoder().encode(aiConfig) {
+                UserDefaults.standard.set(data, forKey: "aiConfig")
+            }
+        }
+    }
+
     /// Loads each preference from `UserDefaults`, applying defaults when
     /// the key is absent (60s refresh, menu bar enabled, no filter).
     private init() {
@@ -134,6 +147,14 @@ class SettingsManager: ObservableObject {
             self.labelBadgeConfigs = configs
         } else {
             self.labelBadgeConfigs = []
+        }
+
+        if let data = UserDefaults.standard.data(forKey: "aiConfig"),
+            let config = try? JSONDecoder().decode(AIConfig.self, from: data)
+        {
+            self.aiConfig = config
+        } else {
+            self.aiConfig = .default
         }
     }
 

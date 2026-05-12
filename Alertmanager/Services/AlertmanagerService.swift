@@ -107,6 +107,19 @@ class AlertmanagerService {
         }
     }
 
+    /// Public re-entry point for applying an alertmanager's configured
+    /// authentication to an arbitrary outbound `URLRequest`.
+    ///
+    /// Used by `AIAnalysisService.executeGrafanaTool` so AI-driven proxy
+    /// requests share the exact same auth pipeline as alert fetches —
+    /// no separate code path means tokens resolved via file/command are
+    /// re-evaluated on every call here too.
+    func configureRequestAuthentication(
+        _ request: inout URLRequest, for alertmanager: Alertmanager
+    ) async throws {
+        try await configureAuthentication(&request, for: alertmanager)
+    }
+
     // MARK: - Private Methods
 
     /// Fetches alerts from a standard Prometheus Alertmanager via

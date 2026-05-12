@@ -48,6 +48,10 @@ struct AlertRowView: View {
     /// User-configured label badge mappings, observed from `SettingsManager`.
     @ObservedObject private var settings = SettingsManager.shared
 
+    /// Window opener used by the "Analyze" button to spawn the AI
+    /// analysis window for this alert.
+    @Environment(\.openWindow) private var openWindow
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Collapsed header: tap anywhere on the row to toggle expansion.
@@ -146,8 +150,12 @@ struct AlertRowView: View {
                                 .fontWeight(.semibold)
                                 .foregroundColor(.secondary)
                                 .textCase(.uppercase)
-                            Text(.init(description))
-                                .font(.body)
+                            // Block-level Markdown so descriptions that
+                            // include headers, lists, or code blocks
+                            // render the same way the AI analysis answer
+                            // does. Inline markup (`**bold**`, links, …)
+                            // is handled in the same pass.
+                            MarkdownView(text: description)
                                 .foregroundColor(.primary)
                         }
                         .padding(.horizontal)
@@ -276,6 +284,32 @@ struct AlertRowView: View {
                                 .padding(.vertical, 4)
                             }
                             .buttonStyle(.borderedProminent)
+                        }
+
+                        // AI analysis is only meaningful for Grafana alerts
+                        // (the tool calls hit the Grafana HTTP API for
+                        // datasources / dashboards / queries) and only
+                        // surfaced when the user has enabled the feature
+                        // in Settings → AI. Hidden entirely when off, so
+                        // users who don't use AI aren't reminded of it.
+                        if alertmanager.isGrafana, settings.aiConfig.enabled {
+                            Button(action: openAnalysisWindow) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "sparkles")
+                                        .font(.system(size: 10))
+                                    Text("Analyze")
+                                        .font(.caption)
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(!settings.aiConfig.isUsable)
+                            .help(
+                                settings.aiConfig.isUsable
+                                    ? "Open the AI analysis window for this alert."
+                                    : "Configure an AI endpoint and API key in Settings → AI first."
+                            )
                         }
 
                         Spacer()
@@ -446,6 +480,18 @@ struct AlertRowView: View {
         } else {
             print("Failed to create dashboard URL from: \(urlString)")
         }
+    }
+
+    /// Opens (or reuses) the AI analysis window for this alert. The
+    /// window scene is registered in `AlertmanagerApp` and keyed by
+    /// `AlertAnalysisContext`, so tapping Analyze on the same alert twice
+    /// brings the existing window forward rather than spawning a new one.
+    private func openAnalysisWindow() {
+        let context = AlertAnalysisContext(
+            alertmanagerID: alertmanager.id,
+            fingerprint: alert.fingerprint
+        )
+        openWindow(id: "analyze-alert", value: context)
     }
 
     /// Opens a specific Grafana panel using `__dashboardUid__` and

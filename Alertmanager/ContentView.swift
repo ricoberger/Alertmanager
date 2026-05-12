@@ -419,6 +419,7 @@ struct ContentView: View {
         settings.menuBarFilterID = nil
         settings.showAlertmanagerName = true
         settings.labelBadgeConfigs = []
+        settings.aiConfig = .default
     }
 }
 
