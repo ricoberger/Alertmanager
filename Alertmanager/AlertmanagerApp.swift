@@ -49,6 +49,10 @@ struct AlertmanagerApp: App {
             ContentView()
                 .onAppear {
                     NotificationService.shared.configure(with: sharedModelContainer)
+                    // One-shot version probe against the GitHub releases
+                    // API. Subsequent `.onAppear` calls within the same
+                    // session are no-ops — the banner is a launch hint.
+                    UpdateCheckService.shared.checkForUpdate()
                 }
         }
         .modelContainer(sharedModelContainer)

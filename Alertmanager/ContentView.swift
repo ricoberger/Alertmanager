@@ -67,6 +67,15 @@ struct ContentView: View {
     /// been closed.
     @State private var notificationAlertNotFound = false
 
+    /// Observes the singleton update-check service. The published
+    /// `availableUpdate` drives the bottom-trailing "Update available"
+    /// banner overlay.
+    @StateObject private var updateCheck = UpdateCheckService.shared
+
+    /// Per-session dismissal of the update banner. Reset on next launch so
+    /// the banner reappears if the update is still applicable.
+    @State private var updateBannerDismissed = false
+
     var body: some View {
         NavigationSplitView {
             VStack(spacing: 0) {
@@ -116,10 +125,25 @@ struct ContentView: View {
                 ContentUnavailableView(
                     "Alert Not Found",
                     systemImage: "bell.slash",
-                    description: Text("The alert could not be found. It may have already been resolved or expired.")
+                    description: Text(
+                        "The alert could not be found. It may have already been resolved or expired."
+                    )
                 )
             }
         }
+        .overlay(alignment: .bottom) {
+            // Launch-time update notice. Only rendered when the version
+            // probe has reported a newer release *and* the user hasn't
+            // dismissed it in this session.
+            if let update = updateCheck.availableUpdate, !updateBannerDismissed {
+                UpdateAvailableBanner(update: update) {
+                    updateBannerDismissed = true
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: updateCheck.availableUpdate)
+        .animation(.easeInOut(duration: 0.2), value: updateBannerDismissed)
         .sheet(isPresented: $showingAddAlertmanager) {
             NavigationStack {
                 AlertmanagerFormView()
@@ -208,7 +232,9 @@ struct ContentView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This will delete all alertmanagers and filters, and restore default settings. This action cannot be undone.")
+            Text(
+                "This will delete all alertmanagers and filters, and restore default settings. This action cannot be undone."
+            )
         }
     }
 
@@ -223,8 +249,10 @@ struct ContentView: View {
     /// is set so the detail column can show an appropriate hint.
     private func resolvePendingAlertDetail() {
         guard let pending = pendingAlertDetail else { return }
-        guard let alertmanager = alertmanagers.first(where: { $0.id == pending.alertmanagerID }) else { return }
-        guard let alert = AlertsManager.shared.alertsByAlertmanager[pending.alertmanagerID]?
+        guard let alertmanager = alertmanagers.first(where: { $0.id == pending.alertmanagerID })
+        else { return }
+        guard
+            let alert = AlertsManager.shared.alertsByAlertmanager[pending.alertmanagerID]?
                 .first(where: { $0.fingerprint == pending.fingerprint })
         else {
             // The alertmanager is known but the alert is missing from the
@@ -245,7 +273,8 @@ struct ContentView: View {
 
     /// Deletes the alertmanagers at the supplied offsets, first stopping
     /// their polling timers so they don't fire against a deleted model.
-    private func deleteAlertmanagers(offsets: IndexSet) {        withAnimation {
+    private func deleteAlertmanagers(offsets: IndexSet) {
+        withAnimation {
             for index in offsets {
                 let alertmanager = alertmanagers[index]
                 if case .alertmanager(let selected) = selectedItem, selected == alertmanager {
@@ -322,7 +351,8 @@ struct ContentView: View {
     /// contents into the current `modelContext`, and starts polling for any
     /// newly added alertmanagers. Reports the outcome through the
     /// "Import Complete" alert.
-    private func importConfiguration() {        let panel = NSOpenPanel()
+    private func importConfiguration() {
+        let panel = NSOpenPanel()
         panel.allowedContentTypes = [UTType.json]
         panel.allowsMultipleSelection = false
 
