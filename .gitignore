@@ -67,3 +67,6 @@ build/
 # xcode-build-server
 buildServer.json
 .bundle/
+
+# AI
+.claude/
