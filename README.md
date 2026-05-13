@@ -58,3 +58,41 @@ To make the SourceKit-LSP working properly with the Xcode project, a
 rm .bundle; xcodebuild -project Alertmanager.xcodeproj -scheme Alertmanager -configuration Debug -resultBundlePath .bundle build
 xcode-build-server config -project Alertmanager.xcodeproj -scheme Alertmanager
 ```
+
+### Notification opens a new (empty) window
+
+If tapping a notification opens a fresh empty window while the alert is
+displayed in the already-running window, Launch Services has registered multiple
+`Alertmanager.app` bundles under the same identifier
+(`de.ricoberger.Alertmanager`) — typically the `/Applications` install alongside
+Xcode debug builds, archive intermediates, and trashed copies. The OS delivers
+the tap to the running instance _and_ activates one of the stale bundle paths,
+which spawns the extra window.
+
+```bash
+# 1. Remove trashed copies — they get re-registered on every login
+rm -rf ~/.Trash/Alertmanager*
+
+# 2. Remove Xcode build artifacts that Launch Services still indexes
+rm -rf ~/Library/Developer/Xcode/DerivedData/Alertmanager-*
+rm -rf build
+
+# 3. Unregister every Alertmanager bundle path LS currently knows
+LSREG=/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/Support/lsregister
+"$LSREG" -dump 2>/dev/null | awk '/^path:/ && /Alertmanager(\.app| [0-9]+\.[0-9]+\.[0-9]+\.app)/ {sub(/ \(0x[0-9a-f]+\)$/,""); sub(/^path:[ \t]+/,""); print}' \
+  | while IFS= read -r p; do "$LSREG" -u "$p"; done
+
+# 4. Quit the running app and re-register only the canonical copy
+osascript -e 'tell application "Alertmanager" to quit' 2>/dev/null
+"$LSREG" -f /Applications/Alertmanager.app
+
+# 5. Verify only /Applications/Alertmanager.app remains
+"$LSREG" -dump 2>/dev/null | grep -E "^path:" | grep -i "alertmanager"
+```
+
+If a single registration is not enough, rebuild the entire LS database:
+
+```bash
+"$LSREG" -kill -r -domain local -domain system -domain user
+"$LSREG" -f /Applications/Alertmanager.app
+```
