@@ -59,6 +59,18 @@ rm .bundle; xcodebuild -project Alertmanager.xcodeproj -scheme Alertmanager -con
 xcode-build-server config -project Alertmanager.xcodeproj -scheme Alertmanager
 ```
 
+### App crashes on launch after upgrade (SwiftData schema mismatch)
+
+If the app crashes immediately on launch with a
+`Failed to create ModelContainer` error after upgrading, the on-disk SwiftData
+store was written by an older version whose schema is incompatible with the
+current one. The app does not migrate existing data automatically — delete the
+store and relaunch to start from a clean slate.
+
+```bash
+rm -rf ~/Library/Application\ Support/de.ricoberger.Alertmanager
+```
+
 ### Notification opens a new (empty) window
 
 If tapping a notification opens a fresh empty window while the alert is

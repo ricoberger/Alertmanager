@@ -34,10 +34,8 @@ struct AlertmanagerFormView: View {
     @State private var url: String = ""
     /// Whether this entry targets a Grafana-managed Alertmanager.
     @State private var isGrafana: Bool = false
-    /// Grafana datasource names to query (Grafana mode only).
-    @State private var grafanaAlertmanagers: [String] = []
-    /// Working buffer for the "add Grafana alertmanager" text field.
-    @State private var newGrafanaAlertmanager: String = ""
+    /// Grafana datasource UID to query (Grafana mode only).
+    @State private var grafanaAlertmanager: String = ""
     /// Currently selected high-level auth strategy.
     @State private var selectedAuthType: AuthTypeOption = .none
     /// Basic-auth username (used when `selectedAuthType == .basicAuth`).
@@ -80,7 +78,7 @@ struct AlertmanagerFormView: View {
             _name = State(initialValue: alertmanager.name)
             _url = State(initialValue: alertmanager.url)
             _isGrafana = State(initialValue: alertmanager.isGrafana)
-            _grafanaAlertmanagers = State(initialValue: alertmanager.grafanaAlertmanagers)
+            _grafanaAlertmanager = State(initialValue: alertmanager.grafanaAlertmanager)
 
             // Decompose the persisted enum-with-associated-values into the
             // flat UI selectors plus their corresponding text fields.
@@ -121,41 +119,11 @@ struct AlertmanagerFormView: View {
 
                 Toggle("Is Grafana", isOn: $isGrafana)
                     .accessibilityIdentifier("alertmanager-is-grafana-toggle")
-            }
 
-            // Grafana-only section: editable list of datasource names. Each
-            // row has a remove button; the trailing row appends a new entry.
-            if isGrafana {
-                Section("Grafana Alertmanagers") {
-                    ForEach(grafanaAlertmanagers, id: \.self) { alertmanager in
-                        HStack {
-                            Text(alertmanager)
-                            Spacer()
-                            Button(action: {
-                                grafanaAlertmanagers.removeAll { $0 == alertmanager }
-                            }) {
-                                Image(systemName: "minus.circle.fill")
-                                    .foregroundColor(.red)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-
-                    HStack {
-                        TextField("Alertmanager Name", text: $newGrafanaAlertmanager)
-                            .textFieldStyle(.roundedBorder)
-                        Button(action: {
-                            if !newGrafanaAlertmanager.isEmpty {
-                                grafanaAlertmanagers.append(newGrafanaAlertmanager)
-                                newGrafanaAlertmanager = ""
-                            }
-                        }) {
-                            Image(systemName: "plus.circle.fill")
-                                .foregroundColor(.green)
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(newGrafanaAlertmanager.isEmpty)
-                    }
+                if isGrafana {
+                    TextField("Grafana Alertmanager", text: $grafanaAlertmanager)
+                        .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("alertmanager-grafana-datasource-id-field")
                 }
             }
 
@@ -299,7 +267,7 @@ struct AlertmanagerFormView: View {
             alertmanager.name = name
             alertmanager.url = url
             alertmanager.isGrafana = isGrafana
-            alertmanager.grafanaAlertmanagers = grafanaAlertmanagers
+            alertmanager.grafanaAlertmanager = grafanaAlertmanager
             alertmanager.authType = authType
 
             // Restart polling so URL/auth changes take effect immediately.
@@ -314,7 +282,7 @@ struct AlertmanagerFormView: View {
                 name: name,
                 url: url,
                 isGrafana: isGrafana,
-                grafanaAlertmanagers: grafanaAlertmanagers,
+                grafanaAlertmanager: grafanaAlertmanager,
                 authType: authType,
                 sortOrder: maxSortOrder + 1
             )

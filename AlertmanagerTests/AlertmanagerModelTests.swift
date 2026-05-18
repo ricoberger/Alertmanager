@@ -182,7 +182,7 @@ struct FilterLabelMatchersTests {
 @Suite("Alertmanager model properties")
 struct AlertmanagerModelPropertyTests {
 
-    @Test("sortOrder, isGrafana, grafanaAlertmanagers persist correctly")
+    @Test("sortOrder, isGrafana, grafanaAlertmanager persist correctly")
     @MainActor
     func propertiesPersist() throws {
         let container = try makeInMemoryContainer()
@@ -192,7 +192,7 @@ struct AlertmanagerModelPropertyTests {
             name: "Grafana",
             url: "https://grafana.example.com",
             isGrafana: true,
-            grafanaAlertmanagers: ["mimir-am", "loki-am"],
+            grafanaAlertmanager: "mimir-am",
             sortOrder: 5
         )
         context.insert(am)
@@ -203,7 +203,7 @@ struct AlertmanagerModelPropertyTests {
         #expect(result.name == "Grafana")
         #expect(result.url == "https://grafana.example.com")
         #expect(result.isGrafana == true)
-        #expect(result.grafanaAlertmanagers == ["mimir-am", "loki-am"])
+        #expect(result.grafanaAlertmanager == "mimir-am")
         #expect(result.sortOrder == 5)
     }
 }

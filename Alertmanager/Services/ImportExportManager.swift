@@ -41,7 +41,7 @@ struct ExportAlertmanager: Codable {
     let name: String
     let url: String
     let isGrafana: Bool
-    let grafanaAlertmanagers: [String]
+    let grafanaAlertmanager: String
     let authType: ExportAuthType
     let sortOrder: Int?
 }
@@ -164,7 +164,7 @@ class ImportExportManager {
                 name: alertmanager.name,
                 url: alertmanager.url,
                 isGrafana: alertmanager.isGrafana,
-                grafanaAlertmanagers: alertmanager.grafanaAlertmanagers,
+                grafanaAlertmanager: alertmanager.grafanaAlertmanager,
                 authType: convertAuthType(alertmanager.authType),
                 sortOrder: alertmanager.sortOrder
             )
@@ -265,7 +265,7 @@ class ImportExportManager {
                     name: exportAlertmanager.name,
                     url: exportAlertmanager.url,
                     isGrafana: exportAlertmanager.isGrafana,
-                    grafanaAlertmanagers: exportAlertmanager.grafanaAlertmanagers,
+                    grafanaAlertmanager: exportAlertmanager.grafanaAlertmanager,
                     authType: convertToAuthType(exportAlertmanager.authType)
                 )
                 alertmanager.sortOrder = exportAlertmanager.sortOrder ?? 0

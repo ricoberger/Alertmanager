@@ -403,27 +403,23 @@ struct AlertRowView: View {
     /// - **Grafana**: targets `{url}/alerting/silence/new` with one
     ///   `matcher=key%3Dvalue` query item per label, and an
     ///   `alertmanager=` parameter set to the datasource *name*. When the
-    ///   alert's `grafanaAlertmanagerSource` is not `"grafana"`, the name is
-    ///   resolved via `GET {url}/api/datasources/uid/{uid}` because Grafana
-    ///   expects the human-readable name rather than the datasource UID.
+    ///   resolved UID is not `"grafana"`, the name is resolved via
+    ///   `GET {url}/api/datasources/uid/{uid}` because Grafana expects the
+    ///   human-readable name rather than the datasource UID.
     /// - **Standard Alertmanager**: targets `{url}/#/silences/new` with a
     ///   single `filter={k1="v1", k2="v2"}` query value, percent-encoded.
     private func openSilenceURL() async {
+        let configuredUID =
+            alertmanager.grafanaAlertmanager.isEmpty ? nil : alertmanager.grafanaAlertmanager
         let resolvedName: String?
-        if alertmanager.isGrafana,
-            let uid = alert.grafanaAlertmanagerSource ?? alertmanager.grafanaAlertmanagers.first,
-            uid != "grafana"
-        {
+        if alertmanager.isGrafana, let uid = configuredUID, uid != "grafana" {
             let service = AlertmanagerService()
             resolvedName = await service.fetchDatasourceName(for: uid, in: alertmanager)
         } else {
             resolvedName = nil
         }
 
-        if alertmanager.isGrafana,
-            alert.grafanaAlertmanagerSource == nil,
-            alertmanager.grafanaAlertmanagers.isEmpty
-        {
+        if alertmanager.isGrafana, configuredUID == nil {
             print("No Grafana alertmanager configured")
             return
         }
@@ -466,7 +462,7 @@ struct AlertRowView: View {
         name: "Test Alertmanager",
         url: "https://alertmanager.example.com",
         isGrafana: false,
-        grafanaAlertmanagers: [],
+        grafanaAlertmanager: "",
         authType: .none
     )
 
