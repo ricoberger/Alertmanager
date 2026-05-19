@@ -45,54 +45,84 @@ struct AlertRowView: View {
     /// in flight. Used to disable the Silence button during the async fetch.
     @State private var isFetchingSilenceURL: Bool = false
 
+    /// `true` while the cursor is over the row title; controls visibility of
+    /// the hover-revealed "copy as markdown" icon next to the alert name.
+    @State private var isHoveringTitle: Bool = false
+
+    /// Briefly `true` after a successful copy. Flips the copy icon to a
+    /// checkmark for a moment as confirmation feedback.
+    @State private var didCopy: Bool = false
+
     /// User-configured label badge mappings, observed from `SettingsManager`.
     @ObservedObject private var settings = SettingsManager.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Collapsed header: tap anywhere on the row to toggle expansion.
-            Button(action: {
+            // Implemented with `onTapGesture` rather than wrapping in a
+            // Button so the nested copy Button below stays the sole hit
+            // target inside its own bounds (nested SwiftUI Buttons fight
+            // for clicks).
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Text(
+                            settings.showAlertmanagerName
+                                ? "[\(alertmanagerDisplayName)] \(alert.alertName)"
+                                : alert.alertName
+                        )
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+
+                        Button(action: {
+                            Task { await copyAlertAsMarkdown() }
+                        }) {
+                            Image(systemName: didCopy ? "checkmark" : "doc.on.doc")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .opacity(isHoveringTitle || didCopy ? 1 : 0)
+                        .help("Copy alert as Markdown")
+                        .accessibilityLabel("Copy alert as Markdown")
+                        .accessibilityIdentifier("alert-row-copy")
+                    }
+                    .onHover { isHoveringTitle = $0 }
+
+                    if let subtitle = alert.subtitle {
+                        Text(subtitle)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .lineLimit(isExpandedState ? nil : 1)
+                    }
+                }
+
+                Spacer()
+
+                HStack(spacing: 4) {
+                    timeBadge
+                    severityBadge
+                    ForEach(customLabelBadges, id: \.0) { key, value, color in
+                        Text(value.uppercased())
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(color)
+                            .cornerRadius(4)
+                    }
+                }
+            }
+            .padding()
+            .contentShape(Rectangle())
+            .onTapGesture {
                 withAnimation {
                     isExpandedState.toggle()
                 }
-            }) {
-                HStack(alignment: .top, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(settings.showAlertmanagerName ? "[\(alertmanagerDisplayName)] \(alert.alertName)" : alert.alertName)
-                            .font(.headline)
-                            .foregroundColor(.primary)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-
-                        if let subtitle = alert.subtitle {
-                            Text(subtitle)
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                                .lineLimit(isExpandedState ? nil : 1)
-                        }
-                    }
-
-                    Spacer()
-
-                    HStack(spacing: 4) {
-                        timeBadge
-                        severityBadge
-                        ForEach(customLabelBadges, id: \.0) { key, value, color in
-                            Text(value.uppercased())
-                                .font(.caption)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(color)
-                                .cornerRadius(4)
-                        }
-                    }
-                }
-                .padding()
-                .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
 
             if isExpandedState {
                 // Expanded body: state/receivers/start, optional description,
@@ -139,7 +169,9 @@ struct AlertRowView: View {
                     }
                     .padding(.horizontal)
 
-                    if let description = alert.description.map({ $0.trimmingCharacters(in: .newlines) }), !description.isEmpty {
+                    if let description = alert.description.map({
+                        $0.trimmingCharacters(in: .newlines)
+                    }), !description.isEmpty {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Description")
                                 .font(.caption)
@@ -388,7 +420,7 @@ struct AlertRowView: View {
     private func openURL(_ urlString: String) {
         print("Original URL string: \(urlString)")
         guard let sanitized = AlertDeepLinks.sanitize(urlString),
-              let finalURL = URL(string: sanitized)
+            let finalURL = URL(string: sanitized)
         else {
             print("Failed to parse or construct URL")
             return
@@ -435,7 +467,8 @@ struct AlertRowView: View {
 
     /// Opens the Grafana dashboard referenced by `__dashboardUid__`.
     private func openDashboardURL(_ dashboardUID: String) {
-        let urlString = AlertDeepLinks.dashboardURL(alertmanager: alertmanager, dashboardUID: dashboardUID)
+        let urlString = AlertDeepLinks.dashboardURL(
+            alertmanager: alertmanager, dashboardUID: dashboardUID)
         print("Opening Grafana dashboard URL: \(urlString)")
         if let url = URL(string: urlString) {
             NSWorkspace.shared.open(url)
@@ -444,10 +477,35 @@ struct AlertRowView: View {
         }
     }
 
+    /// Resolves the alertmanager's auth credentials, renders the alert as
+    /// markdown, and writes the result to the general pasteboard.
+    ///
+    /// The markdown includes the alertmanager base URL and the resolved
+    /// credentials so the recipient can reproduce the underlying API call.
+    /// On success, the copy icon briefly switches to a checkmark.
+    private func copyAlertAsMarkdown() async {
+        let service = AlertmanagerService()
+        let credentials = await service.resolveAuthCredentials(for: alertmanager)
+        let markdown = AlertMarkdown.build(
+            for: alert,
+            alertmanager: alertmanager,
+            authCredentials: credentials
+        )
+
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(markdown, forType: .string)
+
+        didCopy = true
+        try? await Task.sleep(nanoseconds: 1_500_000_000)
+        didCopy = false
+    }
+
     /// Opens a specific Grafana panel using `__dashboardUid__` and
     /// `__panelId__` annotations.
     private func openPanelURL(dashboardUID: String, panelId: String) {
-        let urlString = AlertDeepLinks.panelURL(alertmanager: alertmanager, dashboardUID: dashboardUID, panelId: panelId)
+        let urlString = AlertDeepLinks.panelURL(
+            alertmanager: alertmanager, dashboardUID: dashboardUID, panelId: panelId)
         print("Opening Grafana panel URL: \(urlString)")
         if let url = URL(string: urlString) {
             NSWorkspace.shared.open(url)
