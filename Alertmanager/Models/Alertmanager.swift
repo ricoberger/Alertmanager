@@ -11,8 +11,8 @@ import SwiftData
 ///
 /// An `Alertmanager` describes either a standard Prometheus Alertmanager
 /// instance or a Grafana-managed Alertmanager (when `isGrafana` is `true`).
-/// In Grafana mode, `grafanaAlertmanagers` lists the per-datasource
-/// Alertmanager names that should be queried via Grafana's proxied API.
+/// In Grafana mode, `grafanaAlertmanager` holds the Grafana datasource UID
+/// of the Alertmanager to query via Grafana's proxied API.
 @Model
 final class Alertmanager {
     /// Stable identifier used as the key for polling timers, notification
@@ -27,14 +27,14 @@ final class Alertmanager {
     var url: String
 
     /// When `true`, the URL points to a Grafana instance and alerts are
-    /// fetched through Grafana's `/api/alertmanager/{name}/api/v2/alerts`
-    /// endpoints for each entry in `grafanaAlertmanagers`.
+    /// fetched through Grafana's `/api/alertmanager/{uid}/api/v2/alerts`
+    /// endpoint using `grafanaAlertmanager`.
     var isGrafana: Bool
 
-    /// Names of the Grafana-managed Alertmanagers to query. Ignored when
-    /// `isGrafana` is `false`. Each fetched alert is tagged with its source
-    /// name to preserve correct silence/dashboard deep-links.
-    var grafanaAlertmanagers: [String]
+    /// Grafana datasource UID of the Alertmanager to query. Ignored when
+    /// `isGrafana` is `false`. Each fetched alert is tagged with this UID
+    /// to preserve correct silence/dashboard deep-links.
+    var grafanaAlertmanager: String
 
     /// Creation timestamp; primarily used for stable ordering as a tiebreaker.
     var timestamp: Date
@@ -87,7 +87,7 @@ final class Alertmanager {
     ///   - url: Base URL of the backend.
     ///   - isGrafana: Whether this entry represents a Grafana-managed
     ///     Alertmanager.
-    ///   - grafanaAlertmanagers: Grafana datasource names to query when
+    ///   - grafanaAlertmanager: Grafana datasource UID to query when
     ///     `isGrafana` is `true`.
     ///   - authType: Authentication strategy applied to outbound requests.
     ///   - timestamp: Creation date used for ordering tiebreaks.
@@ -97,7 +97,7 @@ final class Alertmanager {
         name: String = "",
         url: String = "",
         isGrafana: Bool = false,
-        grafanaAlertmanagers: [String] = [],
+        grafanaAlertmanager: String = "",
         authType: AuthenticationType = .none,
         timestamp: Date = Date(),
         sortOrder: Int = 0
@@ -106,7 +106,7 @@ final class Alertmanager {
         self.name = name
         self.url = url
         self.isGrafana = isGrafana
-        self.grafanaAlertmanagers = grafanaAlertmanagers
+        self.grafanaAlertmanager = grafanaAlertmanager
         self.timestamp = timestamp
         self.sortOrder = sortOrder
         self.authType = authType

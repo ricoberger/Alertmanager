@@ -298,7 +298,7 @@ struct ImportExportRoundTripTests {
         let exportJSON = """
         {
             "alertmanagers": [
-                {"name": "A", "url": "http://a.example.com", "isGrafana": false, "grafanaAlertmanagers": [], "authType": {"type": "none"}}
+                {"name": "A", "url": "http://a.example.com", "isGrafana": false, "grafanaAlertmanager": "", "authType": {"type": "none"}}
             ],
             "filters": [
                 {"name": "F", "alertmanagerNames": [], "states": [], "receivers": [], "labelMatchers": []}

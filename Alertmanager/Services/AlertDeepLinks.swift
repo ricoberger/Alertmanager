@@ -65,8 +65,8 @@ enum AlertDeepLinks {
     /// - **Grafana**: targets `{url}/alerting/silence/new` with one
     ///   `matcher=key%3Dvalue` query item per label (sorted by key), and an
     ///   `alertmanager=` parameter set to the datasource name.
-    ///   Resolution priority: `resolvedDatasourceName` → `alert.grafanaAlertmanagerSource`
-    ///   → `alertmanager.grafanaAlertmanagers.first` → `""`.
+    ///   Resolution priority: `resolvedDatasourceName` →
+    ///   `alertmanager.grafanaAlertmanager` → `""`.
     /// - **Standard Alertmanager**: targets `{url}/#/silences/new` with a
     ///   single `filter={k1="v1", k2="v2"}` query value, percent-encoded.
     ///
@@ -76,8 +76,7 @@ enum AlertDeepLinks {
     ///   - alert: The alert whose labels are used to populate the silence matchers.
     ///   - alertmanager: The backend the alert was fetched from.
     ///   - resolvedDatasourceName: For Grafana, the human-readable datasource
-    ///     name; when `nil`, falls back through `grafanaAlertmanagerSource`
-    ///     and configured names.
+    ///     name; when `nil`, falls back to the configured datasource UID.
     /// - Returns: The silence URL string.
     static func silenceURL(
         for alert: GettableAlert,
@@ -87,10 +86,11 @@ enum AlertDeepLinks {
         let sortedLabels = alert.labels.sorted { $0.key < $1.key }
 
         if alertmanager.isGrafana {
+            let configuredUID =
+                alertmanager.grafanaAlertmanager.isEmpty ? nil : alertmanager.grafanaAlertmanager
             let alertmanagerName =
                 resolvedDatasourceName
-                ?? alert.grafanaAlertmanagerSource
-                ?? alertmanager.grafanaAlertmanagers.first
+                ?? configuredUID
                 ?? ""
             var matchers: [String] = []
             for (key, value) in sortedLabels {

@@ -221,7 +221,7 @@ struct AlertmanagerDetailView: View {
         name: "Test Alertmanager",
         url: "https://alertmanager.example.com",
         isGrafana: true,
-        grafanaAlertmanagers: ["grafana", "alertmanager"],
+        grafanaAlertmanager: "grafana",
         authType: .basicAuth(username: "admin", password: "secret")
     )
     container.mainContext.insert(alertmanager)

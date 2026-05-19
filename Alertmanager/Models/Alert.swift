@@ -45,13 +45,6 @@ struct GettableAlert: Codable, Identifiable, Hashable {
     /// URL to the originating system (typically Prometheus) that generated
     /// the alert. Used for the "Source" deep-link in `AlertRowView`.
     let generatorURL: String?
-
-    /// Name of the Grafana-managed Alertmanager this alert was fetched from,
-    /// or `nil` for a standard Prometheus Alertmanager. Set by
-    /// `AlertmanagerService.fetchAlerts(for:)` when iterating over
-    /// `Alertmanager.grafanaAlertmanagers`. Must be preserved end-to-end so
-    /// silence/dashboard deep-links target the correct backend.
-    var grafanaAlertmanagerSource: String?
 }
 
 /// Status block describing an alert's lifecycle state and any active

@@ -327,11 +327,10 @@ class NotificationService: NSObject {
             // For Grafana backends, resolve the datasource name from its UID
             // first (unless the UID is already the built-in "grafana" value).
             if let alertmanager {
+                let configuredUID =
+                    alertmanager.grafanaAlertmanager.isEmpty ? nil : alertmanager.grafanaAlertmanager
                 let resolvedName: String?
-                if alertmanager.isGrafana,
-                    let uid = alert.grafanaAlertmanagerSource ?? alertmanager.grafanaAlertmanagers.first,
-                    uid != "grafana"
-                {
+                if alertmanager.isGrafana, let uid = configuredUID, uid != "grafana" {
                     resolvedName = await service.fetchDatasourceName(for: uid, in: alertmanager)
                 } else {
                     resolvedName = nil
@@ -392,11 +391,9 @@ class NotificationService: NSObject {
 
     /// Finds the alertmanager that produced `alert`.
     ///
-    /// For Grafana alerts the `grafanaAlertmanagerSource` tag is used to
-    /// confirm a match. For standard alerts any alertmanager whose cached
-    /// list contains the fingerprint is accepted. Falls back to `nil` if
-    /// nothing can be resolved (e.g. alert arrived very recently and the
-    /// cache hasn't settled).
+    /// Any alertmanager whose cached list contains the fingerprint is
+    /// accepted. Falls back to `nil` if nothing can be resolved (e.g.
+    /// alert arrived very recently and the cache hasn't settled).
     private func resolveAlertmanager(
         for alert: GettableAlert, in alertmanagers: [Alertmanager]
     ) -> Alertmanager? {

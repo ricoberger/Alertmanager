@@ -77,7 +77,7 @@ class AlertmanagerService {
     /// and is returned verbatim without a network call.
     ///
     /// - Parameters:
-    ///   - uid: The UID stored in `grafanaAlertmanagerSource` on an alert.
+    ///   - uid: The Grafana datasource UID to resolve.
     ///   - alertmanager: The Grafana `Alertmanager` configuration supplying
     ///     the base URL and auth credentials.
     /// - Returns: The datasource name if the API call succeeds, or `uid`
@@ -126,44 +126,25 @@ class AlertmanagerService {
 
     /// Fetches alerts through Grafana's proxied Alertmanager API.
     ///
-    /// Iterates over each entry in `alertmanager.grafanaAlertmanagers`,
-    /// querying `GET {url}/api/alertmanager/{name}/api/v2/alerts`. Each
-    /// returned alert is tagged with `grafanaAlertmanagerSource = name`
-    /// so downstream silence/dashboard deep-links know which backend
-    /// produced them. Any failure from any backend is thrown immediately.
+    /// Queries `GET {url}/api/alertmanager/{uid}/api/v2/alerts` using the
+    /// Grafana datasource UID stored in `alertmanager.grafanaAlertmanager`.
     private func fetchGrafanaAlerts(for alertmanager: Alertmanager) async throws -> [GettableAlert]
     {
-        var allAlerts: [GettableAlert] = []
-        var seenFingerprints: Set<String> = []
-
-        for grafanaAlertmanager in alertmanager.grafanaAlertmanagers {
-            let urlString =
-                "\(alertmanager.url)/api/alertmanager/\(grafanaAlertmanager)/api/v2/alerts"
-            guard let url = URL(string: urlString) else {
-                continue
-            }
-
-            var request = URLRequest(url: url)
-            try await configureAuthentication(&request, for: alertmanager)
-
-                var alerts: [GettableAlert] = try await performRequest(request)
-                // Tag each alert with the source backend so downstream
-                // code can build correct silence/dashboard URLs.
-                for i in 0..<alerts.count {
-                    alerts[i].grafanaAlertmanagerSource = grafanaAlertmanager
-                }
-                // Deduplicate by fingerprint across Grafana backends — the same
-                // alert can be federated to multiple alertmanagers and would
-                // otherwise appear multiple times with the same ID, causing
-                // undefined SwiftUI ForEach behaviour.
-                for alert in alerts {
-                    if seenFingerprints.insert(alert.fingerprint).inserted {
-                        allAlerts.append(alert)
-                    }
-                }
+        let grafanaAlertmanager = alertmanager.grafanaAlertmanager
+        guard !grafanaAlertmanager.isEmpty else {
+            return []
         }
 
-        return allAlerts
+        let urlString =
+            "\(alertmanager.url)/api/alertmanager/\(grafanaAlertmanager)/api/v2/alerts"
+        guard let url = URL(string: urlString) else {
+            throw AlertmanagerError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        try await configureAuthentication(&request, for: alertmanager)
+
+        return try await performRequest(request)
     }
 
     /// Generic request executor.
