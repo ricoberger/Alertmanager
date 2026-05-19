@@ -107,6 +107,38 @@ class AlertmanagerService {
         }
     }
 
+    // MARK: - Public Methods (Auth credentials)
+
+    /// Resolves the configured authentication into a human-readable
+    /// credentials string suitable for pasting into a markdown export.
+    ///
+    /// Token sources (`.file` / `.command`) are resolved live, so the
+    /// returned value reflects whatever the source produces right now —
+    /// rotated or short-lived tokens included.
+    ///
+    /// - `.none`: returns `nil`.
+    /// - `.basicAuth(user, pass)`: returns `"Basic <user>:<pass>"`.
+    /// - `.tokenAuth(source)`: returns `"Bearer <token>"`, or `nil` if the
+    ///   token cannot be resolved (resolution failures are logged).
+    func resolveAuthCredentials(for alertmanager: Alertmanager) async -> String? {
+        switch alertmanager.authType {
+        case .none:
+            return nil
+
+        case .basicAuth(let username, let password):
+            return "Basic \(username):\(password)"
+
+        case .tokenAuth(let tokenSource):
+            do {
+                let token = try await retrieveToken(from: tokenSource)
+                return "Bearer \(token)"
+            } catch {
+                print("resolveAuthCredentials: token resolution failed: \(error)")
+                return nil
+            }
+        }
+    }
+
     // MARK: - Private Methods
 
     /// Fetches alerts from a standard Prometheus Alertmanager via
