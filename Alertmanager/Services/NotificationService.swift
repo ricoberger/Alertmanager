@@ -121,12 +121,16 @@ class NotificationService: NSObject {
 
         do {
             let filters = try modelContext.fetch(FetchDescriptor<Filter>())
-            let alertmanagers = try modelContext.fetch(FetchDescriptor<Alertmanager>())
+            let alertmanagers = try modelContext.fetch(
+                FetchDescriptor<Alertmanager>(sortBy: [SortDescriptor(\.sortOrder)])
+            )
+            let orderedIDs = alertmanagers.map(\.id)
 
             for filter in filters {
                 let allAlerts = AlertAggregator.alerts(
                     for: filter,
-                    from: AlertsManager.shared.alertsByAlertmanager
+                    from: AlertsManager.shared.alertsByAlertmanager,
+                    orderedAlertmanagerIDs: orderedIDs
                 ).sorted { $0.startsAt > $1.startsAt }
                 checkForNewAlerts(filter: filter, alerts: allAlerts, alertmanagers: alertmanagers)
             }
@@ -160,17 +164,37 @@ class NotificationService: NSObject {
     /// source(0), silence(1), runbook(2), dashboard(3), panel(4).
     private func registerNotificationCategories() {
         let allActions: [(bit: Int, action: UNNotificationAction)] = [
-            (0, UNNotificationAction(identifier: "OPEN_SOURCE",    title: "Source",    options: .foreground)),
-            (1, UNNotificationAction(identifier: "OPEN_SILENCE",   title: "Silence",   options: .foreground)),
-            (2, UNNotificationAction(identifier: "OPEN_RUNBOOK",   title: "Runbook",   options: .foreground)),
-            (3, UNNotificationAction(identifier: "OPEN_DASHBOARD", title: "Dashboard", options: .foreground)),
-            (4, UNNotificationAction(identifier: "OPEN_PANEL",     title: "Panel",     options: .foreground)),
+            (
+                0,
+                UNNotificationAction(
+                    identifier: "OPEN_SOURCE", title: "Source", options: .foreground)
+            ),
+            (
+                1,
+                UNNotificationAction(
+                    identifier: "OPEN_SILENCE", title: "Silence", options: .foreground)
+            ),
+            (
+                2,
+                UNNotificationAction(
+                    identifier: "OPEN_RUNBOOK", title: "Runbook", options: .foreground)
+            ),
+            (
+                3,
+                UNNotificationAction(
+                    identifier: "OPEN_DASHBOARD", title: "Dashboard", options: .foreground)
+            ),
+            (
+                4,
+                UNNotificationAction(identifier: "OPEN_PANEL", title: "Panel", options: .foreground)
+            ),
         ]
 
         var categories: Set<UNNotificationCategory> = []
         // Start at 1 — bitmask 0 means no actions, no category needed.
         for mask in 1..<32 {
-            let actions = allActions
+            let actions =
+                allActions
                 .filter { mask & (1 << $0.bit) != 0 }
                 .map { $0.action }
             let category = UNNotificationCategory(
@@ -196,11 +220,11 @@ class NotificationService: NSObject {
     /// - bit 4 → panel
     func categoryIdentifier(for userInfo: [String: String]) -> String {
         var mask = 0
-        if userInfo[NotificationUserInfoKey.sourceURL]    != nil { mask |= 1 << 0 }
-        if userInfo[NotificationUserInfoKey.silenceURL]   != nil { mask |= 1 << 1 }
-        if userInfo[NotificationUserInfoKey.runbookURL]   != nil { mask |= 1 << 2 }
+        if userInfo[NotificationUserInfoKey.sourceURL] != nil { mask |= 1 << 0 }
+        if userInfo[NotificationUserInfoKey.silenceURL] != nil { mask |= 1 << 1 }
+        if userInfo[NotificationUserInfoKey.runbookURL] != nil { mask |= 1 << 2 }
         if userInfo[NotificationUserInfoKey.dashboardURL] != nil { mask |= 1 << 3 }
-        if userInfo[NotificationUserInfoKey.panelURL]     != nil { mask |= 1 << 4 }
+        if userInfo[NotificationUserInfoKey.panelURL] != nil { mask |= 1 << 4 }
         return "ALERT_\(mask)"
     }
 
@@ -260,7 +284,8 @@ class NotificationService: NSObject {
             if !newFingerprints.isEmpty {
                 let newAlerts = alerts.filter { newFingerprints.contains($0.fingerprint) }
                 Task {
-                    await sendNotifications(for: newAlerts, filter: filter, alertmanagers: alertmanagers)
+                    await sendNotifications(
+                        for: newAlerts, filter: filter, alertmanagers: alertmanagers)
                 }
             }
 
@@ -328,7 +353,8 @@ class NotificationService: NSObject {
             // first (unless the UID is already the built-in "grafana" value).
             if let alertmanager {
                 let configuredUID =
-                    alertmanager.grafanaAlertmanager.isEmpty ? nil : alertmanager.grafanaAlertmanager
+                    alertmanager.grafanaAlertmanager.isEmpty
+                    ? nil : alertmanager.grafanaAlertmanager
                 let resolvedName: String?
                 if alertmanager.isGrafana, let uid = configuredUID, uid != "grafana" {
                     resolvedName = await service.fetchDatasourceName(for: uid, in: alertmanager)
@@ -514,7 +540,8 @@ extension NotificationService: UNUserNotificationCenterDelegate {
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,
-        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) ->
+        withCompletionHandler completionHandler:
+            @escaping (UNNotificationPresentationOptions) ->
             Void
     ) {
         completionHandler([.banner, .sound])
