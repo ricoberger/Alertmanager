@@ -12,13 +12,20 @@ import XCTest
 /// Reset Configuration menu command, and the file is then re-imported.
 /// The NSSavePanel / NSOpenPanel UI is bypassed via the
 /// `-uiTestExportPath` / `-uiTestImportPath` launch arguments so the test
-/// doesn't have to drive a system file dialog.
+/// doesn't have to drive a system file dialog, and the initial
+/// alertmanager is created via `-uiTestSeedAlertmanagerURL` to avoid
+/// driving the Add Alertmanager form (which was flaky on CI macOS runners).
 final class ImportExportRoundTripTests: XCTestCase {
     var app: XCUIApplication!
     /// Unique JSON file path used as both the export target and the
     /// subsequent import source. Lives in the test runner's temp dir,
     /// which the unsandboxed app can write to and the test can read.
     var roundTripPath: URL!
+
+    /// Name of the seeded alertmanager — must match the constant used by
+    /// `seedFromLaunchArgumentsIfNeeded` in `AlertmanagerApp.swift`.
+    let seededName = "Test AM"
+    let seededURL = "http://localhost:9093"
 
     override func setUpWithError() throws {
         continueAfterFailure = false
@@ -28,6 +35,7 @@ final class ImportExportRoundTripTests: XCTestCase {
         app = XCUIApplication()
         app.launchArguments += [
             "-uiTestResetStore",
+            "-uiTestSeedAlertmanagerURL", seededURL,
             "-uiTestExportPath", roundTripPath.path,
             "-uiTestImportPath", roundTripPath.path,
         ]
@@ -47,35 +55,17 @@ final class ImportExportRoundTripTests: XCTestCase {
         app.menuBarItems["Alertmanager"].click()
     }
 
-    /// Creates one alertmanager via the Add Alertmanager menu + form.
-    private func createAlertmanager(named name: String, url: String) {
-        openAlertmanagerMenu()
-        app.menuItems["Add Alertmanager"].click()
-
-        let nameField = app.textFields["alertmanager-name-field"]
-        XCTAssertTrue(nameField.waitForExistence(timeout: 5))
-        nameField.click()
-        nameField.typeText(name)
-
-        let urlField = app.textFields["alertmanager-url-field"]
-        urlField.click()
-        urlField.typeText(url)
-
-        app.buttons["alertmanager-save-button"].click()
-        // Wait for the sheet to dismiss before continuing.
-        _ = app.textFields["alertmanager-name-field"].waitForNonExistence(timeout: 5)
-    }
-
     // MARK: - Round trip
 
     @MainActor
     func testExportResetImportRoundTrip() throws {
-        // 1. Seed one alertmanager so there is something to export.
-        let name = "RoundTrip AM"
-        createAlertmanager(named: name, url: "http://localhost:9093")
-
-        let sidebarRow = app.buttons["sidebar-alertmanager-name-\(name)"]
-        XCTAssertTrue(sidebarRow.waitForExistence(timeout: 5))
+        // 1. The seed inserted a `Test AM` row at app launch. Wait for
+        // the corresponding sidebar entry so subsequent assertions have
+        // a stable target to track across reset and import.
+        let sidebarRow = app.descendants(matching: .button).matching(
+            NSPredicate(format: "identifier BEGINSWITH 'sidebar-alertmanager-name-\(seededName)'")
+        ).firstMatch
+        XCTAssertTrue(sidebarRow.waitForExistence(timeout: 10))
 
         // 2. Trigger Export — app writes the JSON file directly to
         // `roundTripPath` because of `-uiTestExportPath`.
@@ -92,8 +82,8 @@ final class ImportExportRoundTripTests: XCTestCase {
             JSONSerialization.jsonObject(with: exportData) as? [String: Any])
         let alertmanagers = try XCTUnwrap(json["alertmanagers"] as? [[String: Any]])
         XCTAssertEqual(alertmanagers.count, 1)
-        XCTAssertEqual(alertmanagers.first?["name"] as? String, name)
-        XCTAssertEqual(alertmanagers.first?["url"] as? String, "http://localhost:9093")
+        XCTAssertEqual(alertmanagers.first?["name"] as? String, seededName)
+        XCTAssertEqual(alertmanagers.first?["url"] as? String, seededURL)
 
         // 3. Trigger Reset and confirm the destructive action.
         openAlertmanagerMenu()

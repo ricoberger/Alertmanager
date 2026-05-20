@@ -51,9 +51,7 @@ struct AlertmanagerApp: App {
         let modelConfiguration = ModelConfiguration(schema: schema, url: url)
 
         do {
-            let container = try ModelContainer(for: schema, configurations: [modelConfiguration])
-            seedFromLaunchArgumentsIfNeeded(container: container)
-            return container
+            return try ModelContainer(for: schema, configurations: [modelConfiguration])
         } catch {
             fatalError("Failed to create ModelContainer: \(error)")
         }
@@ -67,6 +65,13 @@ struct AlertmanagerApp: App {
             ContentView()
                 .onAppear {
                     NotificationService.shared.configure(with: sharedModelContainer)
+                    // Apply the UI-test seed AFTER the view has appeared,
+                    // so `ContentView`'s `@Query` is already observing the
+                    // container and picks up the inserted row. Seeding in
+                    // the container-init closure works on some macOS
+                    // versions but races `@Query` observer registration on
+                    // others (CI runners observed the row never appearing).
+                    seedFromLaunchArgumentsIfNeeded(container: sharedModelContainer)
                     // One-shot version probe against the GitHub releases
                     // API. Subsequent `.onAppear` calls within the same
                     // session are no-ops — the banner is a launch hint.
@@ -132,10 +137,10 @@ struct AlertmanagerApp: App {
 /// Inserts a single `Alertmanager` row when the app is launched with
 /// `-uiTestSeedAlertmanagerURL <url>`. No-op outside of that flag.
 ///
-/// Lets UI tests skip the create-alertmanager form flow and start from a
-/// known-good store pointing at a loopback `FakeAlertmanagerServer`. Uses
-/// `container.mainContext` so the views' `@Query` reads the seeded row on
-/// first render, instead of racing a cross-context save notification.
+/// Idempotent: skips the insert when the store already has alertmanagers,
+/// so a window re-appear or a second invocation doesn't create duplicates.
+/// Called from `ContentView`'s `.onAppear` so `@Query` is registered as
+/// an observer before the row is inserted.
 @MainActor
 private func seedFromLaunchArgumentsIfNeeded(container: ModelContainer) {
     let args = ProcessInfo.processInfo.arguments
@@ -143,8 +148,12 @@ private func seedFromLaunchArgumentsIfNeeded(container: ModelContainer) {
         flagIndex + 1 < args.count
     else { return }
 
-    let url = args[flagIndex + 1]
     let context = container.mainContext
+
+    let existing = (try? context.fetch(FetchDescriptor<Alertmanager>())) ?? []
+    if !existing.isEmpty { return }
+
+    let url = args[flagIndex + 1]
     context.insert(
         Alertmanager(
             name: "Test AM",
