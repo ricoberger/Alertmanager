@@ -15,9 +15,11 @@ import SwiftUI
 struct MenuBarContentView: View {
     @Environment(\.modelContext) private var modelContext
 
-    /// All alertmanagers — filtered down to those referenced by the selected
-    /// filter when computing `filteredAlerts`.
-    @Query private var alertmanagers: [Alertmanager]
+    /// All alertmanagers in sidebar order — filtered down to those referenced
+    /// by the selected filter when computing `filteredAlerts`. The sort order
+    /// determines dedup precedence when the same alert fingerprint appears in
+    /// more than one alertmanager.
+    @Query(sort: \Alertmanager.sortOrder) private var alertmanagers: [Alertmanager]
 
     /// All filters — used to resolve the menu-bar filter by its stored UUID.
     @Query private var filters: [Filter]
@@ -44,8 +46,12 @@ struct MenuBarContentView: View {
     /// `AlertRowView`).
     ///
     /// The filter's `selectedAlertmanagerIDs` narrows the source set;
-    /// an empty list means "all alertmanagers". Results are sorted by
-    /// most-recently-started first.
+    /// an empty list means "all alertmanagers". Alerts that share a
+    /// `fingerprint` across multiple alertmanagers are deduplicated; the
+    /// alertmanager that appears earliest in sidebar order wins and
+    /// determines which entity is paired with the surviving alert (so
+    /// `AlertRowView` builds a deterministic deep link). Results are
+    /// sorted by most-recently-started first.
     private var filteredAlerts: [(alert: GettableAlert, alertmanager: Alertmanager)] {
         guard let filter = selectedFilter else { return [] }
 
@@ -59,10 +65,13 @@ struct MenuBarContentView: View {
         }
 
         var result: [(GettableAlert, Alertmanager)] = []
+        var seenFingerprints: Set<String> = []
         for alertmanager in relevantAlertmanagers {
             let alerts = alertsManager.getAlerts(for: alertmanager)
             let matched = filter.apply(to: alerts)
-            result += matched.map { ($0, alertmanager) }
+            for alert in matched where seenFingerprints.insert(alert.fingerprint).inserted {
+                result.append((alert, alertmanager))
+            }
         }
 
         return result.sorted { $0.0.startsAt > $1.0.startsAt }
