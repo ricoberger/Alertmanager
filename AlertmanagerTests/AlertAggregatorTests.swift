@@ -47,7 +47,11 @@ struct AlertAggregatorTests {
             id2: [makeAlert(fingerprint: "b1")],
         ]
 
-        let result = AlertAggregator.alerts(for: filter, from: cache)
+        let result = AlertAggregator.alerts(
+            for: filter,
+            from: cache,
+            orderedAlertmanagerIDs: [id1, id2]
+        )
         let fps = Set(result.map(\.fingerprint))
         #expect(fps == ["a1", "a2"])
         #expect(!fps.contains("b1"))
@@ -68,11 +72,65 @@ struct AlertAggregatorTests {
             id2: [shared, makeAlert(fingerprint: "unique")],
         ]
 
-        let result = AlertAggregator.alerts(for: filter, from: cache)
+        let result = AlertAggregator.alerts(
+            for: filter,
+            from: cache,
+            orderedAlertmanagerIDs: [id1, id2]
+        )
         let fps = result.map(\.fingerprint)
         let sharedCount = fps.filter { $0 == "shared" }.count
         #expect(sharedCount == 1)
         #expect(fps.contains("unique"))
+    }
+
+    @Test("Dedup precedence follows the sidebar order, not the filter's ID order")
+    func dedupFollowsSidebarOrder() {
+        let id1 = UUID()
+        let id2 = UUID()
+        // Filter selection lists id2 first; sidebar order has id1 first.
+        // The id1 copy of the shared alert should win.
+        let filter = Filter(
+            name: "f",
+            selectedAlertmanagerIDs: [id2, id1],
+            states: []
+        )
+        let fromAM1 = makeAlert(fingerprint: "shared", labels: ["source": "am1"])
+        let fromAM2 = makeAlert(fingerprint: "shared", labels: ["source": "am2"])
+        let cache: [UUID: [GettableAlert]] = [
+            id1: [fromAM1],
+            id2: [fromAM2],
+        ]
+
+        let result = AlertAggregator.alerts(
+            for: filter,
+            from: cache,
+            orderedAlertmanagerIDs: [id1, id2]
+        )
+        #expect(result.count == 1)
+        #expect(result.first?.labels["source"] == "am1")
+    }
+
+    @Test("Ignores ordered IDs that are not in the filter's selection")
+    func ignoresUnselectedOrderedIDs() {
+        let selected = UUID()
+        let unselected = UUID()
+        let filter = Filter(
+            name: "f",
+            selectedAlertmanagerIDs: [selected],
+            states: []
+        )
+        let cache: [UUID: [GettableAlert]] = [
+            selected: [makeAlert(fingerprint: "in")],
+            unselected: [makeAlert(fingerprint: "out")],
+        ]
+
+        let result = AlertAggregator.alerts(
+            for: filter,
+            from: cache,
+            orderedAlertmanagerIDs: [unselected, selected]
+        )
+        let fps = result.map(\.fingerprint)
+        #expect(fps == ["in"])
     }
 
     @Test("Applies filter predicates (state predicate)")
@@ -90,7 +148,11 @@ struct AlertAggregatorTests {
             ]
         ]
 
-        let result = AlertAggregator.alerts(for: filter, from: cache)
+        let result = AlertAggregator.alerts(
+            for: filter,
+            from: cache,
+            orderedAlertmanagerIDs: [id]
+        )
         #expect(result.count == 1)
         #expect(result[0].fingerprint == "active")
     }
@@ -102,7 +164,11 @@ struct AlertAggregatorTests {
             selectedAlertmanagerIDs: [UUID()],
             states: []
         )
-        let result = AlertAggregator.alerts(for: filter, from: [:])
+        let result = AlertAggregator.alerts(
+            for: filter,
+            from: [:],
+            orderedAlertmanagerIDs: []
+        )
         #expect(result.isEmpty)
     }
 
@@ -110,7 +176,11 @@ struct AlertAggregatorTests {
     func emptyCache() {
         let id = UUID()
         let filter = Filter(name: "f", selectedAlertmanagerIDs: [id], states: [])
-        let result = AlertAggregator.alerts(for: filter, from: [id: []])
+        let result = AlertAggregator.alerts(
+            for: filter,
+            from: [id: []],
+            orderedAlertmanagerIDs: [id]
+        )
         #expect(result.isEmpty)
     }
 }

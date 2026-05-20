@@ -3,6 +3,7 @@
 //  Alertmanager
 //
 
+import SwiftData
 import SwiftUI
 
 /// Sidebar row representing a single `Filter`.
@@ -14,6 +15,11 @@ import SwiftUI
 struct SidebarFilterRowView: View {
     /// The filter this row represents.
     let filter: Filter
+
+    /// All alertmanagers in sidebar order. Used to give `AlertAggregator`
+    /// a stable visitation order so dedup precedence matches what the user
+    /// sees in the sidebar.
+    @Query(sort: \Alertmanager.sortOrder) private var alertmanagers: [Alertmanager]
 
     /// Cached count of matching alerts shown in the badge.
     @State private var alertCount: Int = 0
@@ -66,7 +72,8 @@ struct SidebarFilterRowView: View {
     private func updateAlertCount() {
         let filtered = AlertAggregator.alerts(
             for: filter,
-            from: AlertsManager.shared.alertsByAlertmanager
+            from: AlertsManager.shared.alertsByAlertmanager,
+            orderedAlertmanagerIDs: alertmanagers.map(\.id)
         )
         alertCount = filtered.count
     }

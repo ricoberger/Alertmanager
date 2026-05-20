@@ -9,28 +9,42 @@ import Foundation
 /// per-alertmanager cache dictionary.
 ///
 /// The same "collect from multiple backends, deduplicate by fingerprint,
-/// apply filter" pattern is needed in at least three places
-/// (`SidebarFilterRowView`, `NotificationService`, `MenuBarContentView`).
-/// Centralising it here keeps behaviour consistent and makes it directly
-/// testable without touching any UI or system code.
+/// apply filter" pattern is needed in `SidebarFilterRowView` and
+/// `NotificationService`. Centralising it here keeps behaviour consistent
+/// and makes it directly testable without touching any UI or system code.
 enum AlertAggregator {
 
     /// Returns the set of alerts that match `filter`, gathered from the
     /// alertmanagers referenced by the filter.
+    ///
+    /// Alertmanagers are visited in the order given by
+    /// `orderedAlertmanagerIDs` (typically the sidebar order, sorted by
+    /// `Alertmanager.sortOrder`), so when the same alert fingerprint is
+    /// produced by multiple alertmanagers the first one in sidebar order
+    /// wins and later duplicates are dropped. `filter.selectedAlertmanagerIDs`
+    /// is treated as an unordered set membership filter rather than the
+    /// iteration order.
     ///
     /// - Parameters:
     ///   - filter: The filter whose `selectedAlertmanagerIDs` and predicates
     ///     are used.
     ///   - cache: A dictionary mapping alertmanager IDs to their cached alert
     ///     list (e.g. `AlertsManager.shared.alertsByAlertmanager`).
+    ///   - orderedAlertmanagerIDs: All known alertmanager IDs in their
+    ///     sidebar order. Determines dedup precedence when the same
+    ///     fingerprint appears in multiple alertmanagers.
     /// - Returns: Alerts matching every predicate in `filter`, deduplicated by
-    ///   `fingerprint`, preserving the order they were encountered per
-    ///   alertmanager.
-    static func alerts(for filter: Filter, from cache: [UUID: [GettableAlert]]) -> [GettableAlert] {
+    ///   `fingerprint`.
+    static func alerts(
+        for filter: Filter,
+        from cache: [UUID: [GettableAlert]],
+        orderedAlertmanagerIDs: [UUID]
+    ) -> [GettableAlert] {
+        let selected = Set(filter.selectedAlertmanagerIDs)
         var allAlerts: [GettableAlert] = []
         var seenFingerprints: Set<String> = []
 
-        for alertmanagerID in filter.selectedAlertmanagerIDs {
+        for alertmanagerID in orderedAlertmanagerIDs where selected.contains(alertmanagerID) {
             let cached = cache[alertmanagerID] ?? []
             for alert in cached {
                 if !seenFingerprints.contains(alert.fingerprint) {
