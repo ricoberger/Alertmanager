@@ -43,9 +43,13 @@ struct FilterDetailView: View {
     /// Parsed label matchers derived from `searchQuery`.
     @State private var searchMatchers: [LabelMatcher] = []
 
-    /// All alertmanagers, used to resolve filter `selectedAlertmanagerIDs`
-    /// back to entities for refresh and deep-link construction.
-    @Query private var alertmanagers: [Alertmanager]
+    /// All alertmanagers in sidebar order, used to resolve filter
+    /// `selectedAlertmanagerIDs` back to entities for refresh and deep-link
+    /// construction. The sort order determines dedup precedence when the same
+    /// alert fingerprint appears in more than one alertmanager (matches the
+    /// behaviour of `AlertAggregator`, `SidebarFilterRowView`, and the
+    /// menu-bar popup).
+    @Query(sort: \Alertmanager.sortOrder) private var alertmanagers: [Alertmanager]
 
     var body: some View {
         Group {
@@ -181,21 +185,26 @@ struct FilterDetailView: View {
 
     /// Recomputes `alerts` and `isLoading` from `AlertsManager`'s caches.
     ///
-    /// Walks the filter's `selectedAlertmanagerIDs`, collects each
-    /// backend's alerts, deduplicates by `fingerprint` (the same alert can
-    /// be produced by multiple alertmanagers), applies the filter's
-    /// predicates, and sorts newest-first.
+    /// Walks every alertmanager referenced by the filter **in sidebar order**,
+    /// collects each backend's alerts, deduplicates by `fingerprint` (the same
+    /// alert can be produced by multiple alertmanagers), applies the filter's
+    /// predicates, and sorts newest-first. Iterating in sidebar order rather
+    /// than `filter.selectedAlertmanagerIDs` order — which reflects the
+    /// (effectively random) order checkboxes were ticked in the form — makes
+    /// dedup precedence match what the user sees in the sidebar, and matches
+    /// `AlertAggregator`'s contract.
     ///
     /// Notification checking is handled centrally by `NotificationService`,
     /// which subscribes to `.alertsDidUpdate` and checks all filters
     /// independently of which view is visible.
     private func updateAlerts() {
+        let selected = Set(filter.selectedAlertmanagerIDs)
         var allAlerts: [GettableAlert] = []
         var seenFingerprints: Set<String> = []
         var anyLoading = false
 
-        for alertmanagerId in filter.selectedAlertmanagerIDs {
-            let alerts = AlertsManager.shared.alertsByAlertmanager[alertmanagerId] ?? []
+        for alertmanager in alertmanagers where selected.contains(alertmanager.id) {
+            let alerts = AlertsManager.shared.alertsByAlertmanager[alertmanager.id] ?? []
 
             for alert in alerts {
                 if !seenFingerprints.contains(alert.fingerprint) {
@@ -204,7 +213,7 @@ struct FilterDetailView: View {
                 }
             }
 
-            if AlertsManager.shared.isLoadingByAlertmanager[alertmanagerId] ?? false {
+            if AlertsManager.shared.isLoadingByAlertmanager[alertmanager.id] ?? false {
                 anyLoading = true
             }
         }
@@ -228,17 +237,19 @@ struct FilterDetailView: View {
     /// Resolves which alertmanager produced `alert` so `AlertRowView` can
     /// construct correct silence/dashboard URLs.
     ///
-    /// Searches each source alertmanager's cache for a matching alert id;
-    /// falls back to the first known alertmanager if nothing matches
-    /// (which can happen briefly when caches are still being populated).
+    /// Searches each source alertmanager's cache for a matching alert id **in
+    /// sidebar order**, so when the same fingerprint is present in multiple
+    /// alertmanagers the row consistently pairs with the one that wins dedup
+    /// in `updateAlerts()`. Falls back to the first known alertmanager if
+    /// nothing matches (which can happen briefly when caches are still being
+    /// populated).
     private func findAlertmanager(for alert: GettableAlert) -> Alertmanager? {
-        for alertmanagerId in filter.selectedAlertmanagerIDs {
-            if let alertmanager = alertmanagers.first(where: { $0.id == alertmanagerId }) {
-                let alertmanagerAlerts =
-                    AlertsManager.shared.alertsByAlertmanager[alertmanagerId] ?? []
-                if alertmanagerAlerts.contains(where: { $0.id == alert.id }) {
-                    return alertmanager
-                }
+        let selected = Set(filter.selectedAlertmanagerIDs)
+        for alertmanager in alertmanagers where selected.contains(alertmanager.id) {
+            let alertmanagerAlerts =
+                AlertsManager.shared.alertsByAlertmanager[alertmanager.id] ?? []
+            if alertmanagerAlerts.contains(where: { $0.id == alert.id }) {
+                return alertmanager
             }
         }
         return alertmanagers.first
