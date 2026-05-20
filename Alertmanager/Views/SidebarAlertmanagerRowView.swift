@@ -42,6 +42,10 @@ struct SidebarAlertmanagerRowView: View {
                 // Orange warning badge signalling the most recent fetch
                 // failed. The error message is surfaced via the help
                 // tooltip so users can diagnose the issue on hover.
+                //
+                // The explicit accessibilityLabel makes the failure state
+                // detectable by UI tests via the enclosing sidebar row's
+                // combined accessibility label.
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.caption)
                     .fontWeight(.semibold)
@@ -51,6 +55,7 @@ struct SidebarAlertmanagerRowView: View {
                     .background(Color.orange)
                     .clipShape(Capsule())
                     .help(errorMessage)
+                    .accessibilityLabel("Fetch error")
             } else {
                 // Capsule badge with the current alert count. Red signals
                 // there are active alerts, green signals all-clear.

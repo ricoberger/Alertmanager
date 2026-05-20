@@ -12,6 +12,7 @@ final class ImportExportTests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = XCUIApplication()
+        app.launchArguments += ["-uiTestResetStore"]
         app.launch()
     }
 

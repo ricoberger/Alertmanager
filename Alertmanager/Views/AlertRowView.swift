@@ -323,6 +323,7 @@ struct AlertRowView: View {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(isExpandedState ? Color.blue.opacity(0.3) : Color.clear, lineWidth: 1)
         )
+        .accessibilityIdentifier("alert-row-\(alert.alertName)")
         .onAppear {
             isExpandedState = isExpanded
         }
