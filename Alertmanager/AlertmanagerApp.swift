@@ -65,13 +65,6 @@ struct AlertmanagerApp: App {
             ContentView()
                 .onAppear {
                     NotificationService.shared.configure(with: sharedModelContainer)
-                    // Apply the UI-test seed AFTER the view has appeared,
-                    // so `ContentView`'s `@Query` is already observing the
-                    // container and picks up the inserted row. Seeding in
-                    // the container-init closure works on some macOS
-                    // versions but races `@Query` observer registration on
-                    // others (CI runners observed the row never appearing).
-                    seedFromLaunchArgumentsIfNeeded(container: sharedModelContainer)
                     // One-shot version probe against the GitHub releases
                     // API. Subsequent `.onAppear` calls within the same
                     // session are no-ops — the banner is a launch hint.
@@ -134,38 +127,3 @@ struct AlertmanagerApp: App {
     }
 }
 
-/// Inserts a single `Alertmanager` row when the app is launched with
-/// `-uiTestSeedAlertmanagerURL <url>`. No-op outside of that flag.
-///
-/// Idempotent: skips the insert when the store already has alertmanagers,
-/// so a window re-appear or a second invocation doesn't create duplicates.
-/// Called from `ContentView`'s `.onAppear` so `@Query` is registered as
-/// an observer before the row is inserted.
-@MainActor
-private func seedFromLaunchArgumentsIfNeeded(container: ModelContainer) {
-    let args = ProcessInfo.processInfo.arguments
-    guard let flagIndex = args.firstIndex(of: "-uiTestSeedAlertmanagerURL"),
-        flagIndex + 1 < args.count
-    else { return }
-
-    let context = container.mainContext
-
-    let existing = (try? context.fetch(FetchDescriptor<Alertmanager>())) ?? []
-    if !existing.isEmpty { return }
-
-    let url = args[flagIndex + 1]
-    context.insert(
-        Alertmanager(
-            name: "Test AM",
-            url: url,
-            isGrafana: false,
-            grafanaAlertmanager: "",
-            authType: .none
-        )
-    )
-    do {
-        try context.save()
-    } catch {
-        fatalError("UI test seed failed: \(error)")
-    }
-}

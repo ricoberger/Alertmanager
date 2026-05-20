@@ -155,6 +155,14 @@ struct ContentView: View {
             }
         }
         .onAppear {
+            // Apply the UI-test seed (no-op outside UI tests) using this
+            // view's environment `modelContext` — the same context the
+            // `@Query` above observes. Inserting through `mainContext`
+            // directly raced observer registration on CI macOS 26 runners
+            // and the row never surfaced in the sidebar; routing through
+            // the environment context (the path the form-based create
+            // already uses successfully) avoids that race.
+            seedFromLaunchArgumentsIfNeeded()
             // Kick off polling for every persisted alertmanager. Repeated
             // calls are safe — `AlertsManager` replaces any existing timer
             // for the same alertmanager id.
@@ -424,6 +432,32 @@ struct ContentView: View {
             return nil
         }
         return args[index + 1]
+    }
+
+    /// Inserts a single `Alertmanager` row when the app is launched with
+    /// `-uiTestSeedAlertmanagerURL <url>`. No-op outside of that flag.
+    ///
+    /// Idempotent via the `@Query`-backed `alertmanagers` array: the seed
+    /// only runs when the store is empty, so window re-appears or any
+    /// second invocation can't create duplicates. The insert is routed
+    /// through the environment `modelContext` (the same one `@Query`
+    /// observes) and relies on SwiftData's autosave — calling `save()`
+    /// explicitly raced observer registration on CI runners. The
+    /// alertmanager-name-form code path uses this same pattern.
+    private func seedFromLaunchArgumentsIfNeeded() {
+        guard alertmanagers.isEmpty,
+            let url = uiTestLaunchArgumentValue(for: "-uiTestSeedAlertmanagerURL")
+        else { return }
+
+        modelContext.insert(
+            Alertmanager(
+                name: "Test AM",
+                url: url,
+                isGrafana: false,
+                grafanaAlertmanager: "",
+                authType: .none
+            )
+        )
     }
 
     /// Deletes all alertmanagers and filters from the SwiftData store,
