@@ -30,10 +30,12 @@ final class AlertDisplayTests: XCTestCase {
         try server.start()
 
         let app = XCUIApplication()
-        app.launchArguments += [
-            "-uiTestResetStore",
-            "-uiTestSeedAlertmanagerURL", server.baseURL,
-        ]
+        app.launchArguments += ["-uiTestResetStore"]
+        // URL/path-shaped values travel via the environment instead of
+        // `launchArguments`. macOS 26 parses `-key value` argument pairs
+        // into `NSUserDefaults`, and URL/path-typed entries in that table
+        // prevent the app's main window from appearing at all.
+        app.launchEnvironment["UI_TEST_SEED_ALERTMANAGER_URL"] = server.baseURL
         app.launch()
         self.app = app
         return app

@@ -157,11 +157,12 @@ struct ContentView: View {
         .onAppear {
             // Apply the UI-test seed (no-op outside UI tests) using this
             // view's environment `modelContext` — the same context the
-            // `@Query` above observes. Inserting through `mainContext`
-            // directly raced observer registration on CI macOS 26 runners
-            // and the row never surfaced in the sidebar; routing through
-            // the environment context (the path the form-based create
-            // already uses successfully) avoids that race.
+            // `@Query` above observes. Driven by the
+            // `UI_TEST_SEED_ALERTMANAGER_URL` environment variable: macOS
+            // 26 parses `-key value` launch-arg pairs into `NSUserDefaults`
+            // and URL/path values in that table prevent the app's main
+            // window from appearing at all, so URL/path hooks travel via
+            // the environment instead.
             seedFromLaunchArgumentsIfNeeded()
             // Kick off polling for every persisted alertmanager. Repeated
             // calls are safe — `AlertsManager` replaces any existing timer
@@ -333,9 +334,9 @@ struct ContentView: View {
     /// for a save location via `NSSavePanel`. Silent on cancellation;
     /// failures are logged.
     ///
-    /// UI tests can short-circuit the save panel by passing
-    /// `-uiTestExportPath <path>` at launch; the export is then written
-    /// directly to that file path.
+    /// UI tests can short-circuit the save panel by setting
+    /// `UI_TEST_EXPORT_PATH` in the launch environment; the export is
+    /// then written directly to that file path.
     private func exportConfiguration() {
         guard
             let data = ImportExportManager.exportData(
@@ -344,7 +345,7 @@ struct ContentView: View {
             return
         }
 
-        if let path = uiTestLaunchArgumentValue(for: "-uiTestExportPath") {
+        if let path = uiTestEnvironmentValue(for: "UI_TEST_EXPORT_PATH") {
             try? data.write(to: URL(fileURLWithPath: path))
             return
         }
@@ -369,11 +370,11 @@ struct ContentView: View {
     /// newly added alertmanagers. Reports the outcome through the
     /// "Import Complete" alert.
     ///
-    /// UI tests can short-circuit the open panel by passing
-    /// `-uiTestImportPath <path>` at launch; the import is then read
-    /// directly from that file path.
+    /// UI tests can short-circuit the open panel by setting
+    /// `UI_TEST_IMPORT_PATH` in the launch environment; the import is
+    /// then read directly from that file path.
     private func importConfiguration() {
-        if let path = uiTestLaunchArgumentValue(for: "-uiTestImportPath") {
+        if let path = uiTestEnvironmentValue(for: "UI_TEST_IMPORT_PATH") {
             importConfigurationData(from: URL(fileURLWithPath: path))
             return
         }
@@ -423,41 +424,41 @@ struct ContentView: View {
         }
     }
 
-    /// Looks up the value immediately following `flag` in
-    /// `ProcessInfo.processInfo.arguments`. Returns `nil` when the flag
-    /// is absent or has no successor.
-    private func uiTestLaunchArgumentValue(for flag: String) -> String? {
-        let args = ProcessInfo.processInfo.arguments
-        guard let index = args.firstIndex(of: flag), index + 1 < args.count else {
-            return nil
-        }
-        return args[index + 1]
+    /// Reads `name` from `ProcessInfo.processInfo.environment`. UI tests
+    /// pass URL- and file-path-valued hooks via the environment rather
+    /// than launch arguments because macOS 26 parses `-key value` arg
+    /// pairs into `NSUserDefaults`, and URL/path values in that table
+    /// suppress the app's main window from appearing at all.
+    private func uiTestEnvironmentValue(for name: String) -> String? {
+        let value = ProcessInfo.processInfo.environment[name]
+        return (value?.isEmpty == false) ? value : nil
     }
 
     /// Inserts a single `Alertmanager` row when the app is launched with
-    /// `-uiTestSeedAlertmanagerURL <url>`. No-op outside of that flag.
+    /// the `UI_TEST_SEED_ALERTMANAGER_URL` environment variable set.
+    /// No-op outside of that variable being present.
     ///
-    /// Idempotent via the `@Query`-backed `alertmanagers` array: the seed
-    /// only runs when the store is empty, so window re-appears or any
-    /// second invocation can't create duplicates. The insert is routed
-    /// through the environment `modelContext` (the same one `@Query`
-    /// observes) and relies on SwiftData's autosave — calling `save()`
-    /// explicitly raced observer registration on CI runners. The
-    /// alertmanager-name-form code path uses this same pattern.
+    /// Mirrors `AlertmanagerFormView.saveAlertmanager`'s create path:
+    /// explicit `fetch` via the env `modelContext` for idempotency,
+    /// explicit `sortOrder`, autosave only — the same shape the form-
+    /// driven CRUD tests exercise successfully.
     private func seedFromLaunchArgumentsIfNeeded() {
-        guard alertmanagers.isEmpty,
-            let url = uiTestLaunchArgumentValue(for: "-uiTestSeedAlertmanagerURL")
-        else { return }
+        guard let url = uiTestEnvironmentValue(for: "UI_TEST_SEED_ALERTMANAGER_URL") else {
+            return
+        }
 
-        modelContext.insert(
-            Alertmanager(
-                name: "Test AM",
-                url: url,
-                isGrafana: false,
-                grafanaAlertmanager: "",
-                authType: .none
-            )
+        let existing = (try? modelContext.fetch(FetchDescriptor<Alertmanager>())) ?? []
+        guard existing.isEmpty else { return }
+
+        let newAlertmanager = Alertmanager(
+            name: "Test AM",
+            url: url,
+            isGrafana: false,
+            grafanaAlertmanager: "",
+            authType: .none,
+            sortOrder: 0
         )
+        modelContext.insert(newAlertmanager)
     }
 
     /// Deletes all alertmanagers and filters from the SwiftData store,

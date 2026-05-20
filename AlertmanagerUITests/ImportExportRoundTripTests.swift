@@ -33,12 +33,14 @@ final class ImportExportRoundTripTests: XCTestCase {
             path: "Alertmanager-RoundTrip-\(UUID().uuidString).json")
 
         app = XCUIApplication()
-        app.launchArguments += [
-            "-uiTestResetStore",
-            "-uiTestSeedAlertmanagerURL", seededURL,
-            "-uiTestExportPath", roundTripPath.path,
-            "-uiTestImportPath", roundTripPath.path,
-        ]
+        app.launchArguments += ["-uiTestResetStore"]
+        // URL/path-shaped values travel via the environment instead of
+        // `launchArguments`. macOS 26 parses `-key value` argument pairs
+        // into `NSUserDefaults`, and URL/path-typed entries in that table
+        // prevent the app's main window from appearing at all.
+        app.launchEnvironment["UI_TEST_SEED_ALERTMANAGER_URL"] = seededURL
+        app.launchEnvironment["UI_TEST_EXPORT_PATH"] = roundTripPath.path
+        app.launchEnvironment["UI_TEST_IMPORT_PATH"] = roundTripPath.path
         app.launch()
     }
 
