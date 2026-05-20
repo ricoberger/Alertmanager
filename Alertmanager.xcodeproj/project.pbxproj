@@ -528,6 +528,7 @@
 		55AD68462FB2FB3600CBB850 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = AlertmanagerUITests/AlertmanagerUITests.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 75AP6HWLUD;
@@ -548,6 +549,7 @@
 		55AD68472FB2FB3600CBB850 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = AlertmanagerUITests/AlertmanagerUITests.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 75AP6HWLUD;

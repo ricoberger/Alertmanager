@@ -13,6 +13,7 @@ final class AlertmanagerCRUDTests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = XCUIApplication()
+        app.launchArguments += ["-uiTestResetStore"]
         app.launch()
     }
 
@@ -102,8 +103,7 @@ final class AlertmanagerCRUDTests: XCTestCase {
 
     @MainActor
     func testDeleteAlertmanagerRemovesFromSidebar() throws {
-        // Use a unique name to avoid collisions with prior test runs.
-        let name = "DeleteMe-\(Int(Date().timeIntervalSince1970))"
+        let name = "DeleteMe"
 
         openAddAlertmanagerSheet()
         let nameField = waitForFormSheet()

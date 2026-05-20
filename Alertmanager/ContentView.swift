@@ -155,6 +155,15 @@ struct ContentView: View {
             }
         }
         .onAppear {
+            // Apply the UI-test seed (no-op outside UI tests) using this
+            // view's environment `modelContext` — the same context the
+            // `@Query` above observes. Driven by the
+            // `UI_TEST_SEED_ALERTMANAGER_URL` environment variable: macOS
+            // 26 parses `-key value` launch-arg pairs into `NSUserDefaults`
+            // and URL/path values in that table prevent the app's main
+            // window from appearing at all, so URL/path hooks travel via
+            // the environment instead.
+            seedFromLaunchArgumentsIfNeeded()
             // Kick off polling for every persisted alertmanager. Repeated
             // calls are safe — `AlertsManager` replaces any existing timer
             // for the same alertmanager id.
@@ -324,11 +333,20 @@ struct ContentView: View {
     /// Serializes the current configuration to JSON and prompts the user
     /// for a save location via `NSSavePanel`. Silent on cancellation;
     /// failures are logged.
+    ///
+    /// UI tests can short-circuit the save panel by setting
+    /// `UI_TEST_EXPORT_PATH` in the launch environment; the export is
+    /// then written directly to that file path.
     private func exportConfiguration() {
         guard
             let data = ImportExportManager.exportData(
                 alertmanagers: alertmanagers, filters: filters)
         else {
+            return
+        }
+
+        if let path = uiTestEnvironmentValue(for: "UI_TEST_EXPORT_PATH") {
+            try? data.write(to: URL(fileURLWithPath: path))
             return
         }
 
@@ -351,42 +369,96 @@ struct ContentView: View {
     /// contents into the current `modelContext`, and starts polling for any
     /// newly added alertmanagers. Reports the outcome through the
     /// "Import Complete" alert.
+    ///
+    /// UI tests can short-circuit the open panel by setting
+    /// `UI_TEST_IMPORT_PATH` in the launch environment; the import is
+    /// then read directly from that file path.
     private func importConfiguration() {
+        if let path = uiTestEnvironmentValue(for: "UI_TEST_IMPORT_PATH") {
+            importConfigurationData(from: URL(fileURLWithPath: path))
+            return
+        }
+
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [UTType.json]
         panel.allowsMultipleSelection = false
 
         panel.begin { response in
             if response == .OK, let url = panel.url {
-                do {
-                    let data = try Data(contentsOf: url)
-                    let result = try ImportExportManager.importData(
-                        from: data,
-                        modelContext: modelContext,
-                        existingAlertmanagers: alertmanagers
-                    )
-
-                    var message =
-                        "Successfully imported \(result.alertmanagers) alertmanager(s) and \(result.filters) filter(s)."
-                    if result.settingsRestored {
-                        message += " Settings have been restored."
-                    }
-                    importMessage = message
-                    showingImportAlert = true
-
-                    // Begin polling for any alertmanagers added by the import.
-                    // `startMonitoring` is idempotent for entries that were
-                    // already being polled.
-                    for alertmanager in alertmanagers {
-                        AlertsManager.shared.startMonitoring(alertmanager: alertmanager)
-                    }
-                } catch {
-                    importMessage =
-                        "Failed to import configuration: \(error.localizedDescription)"
-                    showingImportAlert = true
-                }
+                importConfigurationData(from: url)
             }
         }
+    }
+
+    /// Reads a JSON export from `url`, applies it via
+    /// `ImportExportManager.importData`, and surfaces the outcome through
+    /// the post-import alert. Extracted so both the open-panel callback
+    /// and the UI test launch-arg path share the same code.
+    private func importConfigurationData(from url: URL) {
+        do {
+            let data = try Data(contentsOf: url)
+            let result = try ImportExportManager.importData(
+                from: data,
+                modelContext: modelContext,
+                existingAlertmanagers: alertmanagers
+            )
+
+            var message =
+                "Successfully imported \(result.alertmanagers) alertmanager(s) and \(result.filters) filter(s)."
+            if result.settingsRestored {
+                message += " Settings have been restored."
+            }
+            importMessage = message
+            showingImportAlert = true
+
+            // Begin polling for any alertmanagers added by the import.
+            // `startMonitoring` is idempotent for entries that were
+            // already being polled.
+            for alertmanager in alertmanagers {
+                AlertsManager.shared.startMonitoring(alertmanager: alertmanager)
+            }
+        } catch {
+            importMessage =
+                "Failed to import configuration: \(error.localizedDescription)"
+            showingImportAlert = true
+        }
+    }
+
+    /// Reads `name` from `ProcessInfo.processInfo.environment`. UI tests
+    /// pass URL- and file-path-valued hooks via the environment rather
+    /// than launch arguments because macOS 26 parses `-key value` arg
+    /// pairs into `NSUserDefaults`, and URL/path values in that table
+    /// suppress the app's main window from appearing at all.
+    private func uiTestEnvironmentValue(for name: String) -> String? {
+        let value = ProcessInfo.processInfo.environment[name]
+        return (value?.isEmpty == false) ? value : nil
+    }
+
+    /// Inserts a single `Alertmanager` row when the app is launched with
+    /// the `UI_TEST_SEED_ALERTMANAGER_URL` environment variable set.
+    /// No-op outside of that variable being present.
+    ///
+    /// Mirrors `AlertmanagerFormView.saveAlertmanager`'s create path:
+    /// explicit `fetch` via the env `modelContext` for idempotency,
+    /// explicit `sortOrder`, autosave only — the same shape the form-
+    /// driven CRUD tests exercise successfully.
+    private func seedFromLaunchArgumentsIfNeeded() {
+        guard let url = uiTestEnvironmentValue(for: "UI_TEST_SEED_ALERTMANAGER_URL") else {
+            return
+        }
+
+        let existing = (try? modelContext.fetch(FetchDescriptor<Alertmanager>())) ?? []
+        guard existing.isEmpty else { return }
+
+        let newAlertmanager = Alertmanager(
+            name: "Test AM",
+            url: url,
+            isGrafana: false,
+            grafanaAlertmanager: "",
+            authType: .none,
+            sortOrder: 0
+        )
+        modelContext.insert(newAlertmanager)
     }
 
     /// Deletes all alertmanagers and filters from the SwiftData store,

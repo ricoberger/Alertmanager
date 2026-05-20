@@ -12,14 +12,15 @@ import XCTest
 /// these tests first create an Alertmanager to satisfy that constraint.
 final class FilterCRUDTests: XCTestCase {
     var app: XCUIApplication!
-    /// Unique name for the helper alertmanager created in setUp.
-    var helperAMName: String = ""
+    /// Name of the helper alertmanager created in setUp. Stable across runs
+    /// because `-uiTestResetStore` gives each launch a fresh SwiftData store.
+    let helperAMName = "FT-AM"
 
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = XCUIApplication()
+        app.launchArguments += ["-uiTestResetStore"]
         app.launch()
-        helperAMName = "FT-AM-\(Int(Date().timeIntervalSince1970))"
         createAlertmanager(named: helperAMName, url: "http://localhost:9093")
     }
 
@@ -43,9 +44,7 @@ final class FilterCRUDTests: XCTestCase {
         urlField.typeText(url)
 
         app.buttons["alertmanager-save-button"].click()
-        // Wait for the sheet to dismiss (save button disappears) rather than
-        // waiting for the sidebar row — the sidebar row can take a long time to
-        // render in a large store.
+        // Wait for the sheet to dismiss before returning.
         _ = app.textFields["alertmanager-name-field"].waitForNonExistence(timeout: 5)
     }
 
@@ -89,7 +88,7 @@ final class FilterCRUDTests: XCTestCase {
     func testCreateFilterAppearsInSidebar() throws {
         openAddFilterSheet()
         let nameField = waitForFilterForm()
-        let filterName = "FT-\(Int(Date().timeIntervalSince1970))"
+        let filterName = "FT"
         nameField.click()
         nameField.typeText(filterName)
 

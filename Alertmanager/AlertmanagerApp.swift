@@ -24,14 +24,30 @@ struct AlertmanagerApp: App {
     /// `~/Library/Application Support/de.ricoberger.Alertmanager/default.sqlite`.
     /// Container creation is fatal — the app cannot function without
     /// persistence.
+    ///
+    /// UI tests launch the app with `-uiTestResetStore`, which redirects the
+    /// SQLite file to a unique path under the temporary directory. This keeps
+    /// each test launch isolated from prior runs (and from the user's real
+    /// data) while still exercising the on-disk persistence path.
+    ///
+    /// UI tests can additionally pass `-uiTestSeedAlertmanagerURL <url>` to
+    /// pre-populate the store with a single `Alertmanager` row pointed at the
+    /// given URL (typically a loopback `FakeAlertmanagerServer`). This skips
+    /// the form-typing flow when a test only cares about display behavior.
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Alertmanager.self,
             Filter.self,
         ])
 
-        let url = URL.applicationSupportDirectory.appending(
-            path: "de.ricoberger.Alertmanager/default.sqlite")
+        let url: URL
+        if ProcessInfo.processInfo.arguments.contains("-uiTestResetStore") {
+            url = FileManager.default.temporaryDirectory.appending(
+                path: "Alertmanager-UITests-\(UUID().uuidString).sqlite")
+        } else {
+            url = URL.applicationSupportDirectory.appending(
+                path: "de.ricoberger.Alertmanager/default.sqlite")
+        }
         let modelConfiguration = ModelConfiguration(schema: schema, url: url)
 
         do {
@@ -110,3 +126,4 @@ struct AlertmanagerApp: App {
         }
     }
 }
+
