@@ -91,6 +91,13 @@ class AlertsManager {
     /// Timestamp of the most recent successful fetch per alertmanager.
     var lastRefreshByAlertmanager: [UUID: Date] = [:]
 
+    /// `true` once at least one fetch attempt — successful or failed —
+    /// has completed for the alertmanager. Unlike
+    /// `lastRefreshByAlertmanager`, this is also set when a fetch errors,
+    /// so consumers (e.g. `NotificationService` baselining) can
+    /// distinguish "never fetched yet" from "fetched but failing".
+    var hasCompletedFetchByAlertmanager: [UUID: Bool] = [:]
+
     /// `true` while a fetch is in flight for the given alertmanager.
     var isLoadingByAlertmanager: [UUID: Bool] = [:]
 
@@ -197,6 +204,7 @@ class AlertsManager {
             }
 
             isLoadingByAlertmanager[alertmanager.id] = false
+            hasCompletedFetchByAlertmanager[alertmanager.id] = true
             inFlightTasks[alertmanager.id] = nil
 
             // Broadcast the change. Listeners can scope by reading

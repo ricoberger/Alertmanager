@@ -100,9 +100,12 @@ AlertmanagerUITests/        XCTest — driven via accessibilityIdentifiers.
   2. `NotificationService` subscribes to `.alertsDidUpdate` and re-evaluates
      **every** filter on every fetch (not just the one currently visible).
   3. First fetch for a filter is a silent **baseline** — no notifications. A
-     filter is only baselined once all its referenced AMs have completed at
-     least one fetch (`AlertsManager.lastRefreshByAlertmanager[…] != nil`), so
-     partial data doesn't seed a bad baseline.
+     filter is only baselined once all the AMs it covers have completed at
+     least one fetch attempt — successful or failed
+     (`AlertsManager.hasCompletedFetchByAlertmanager`) — so partial data
+     doesn't seed a bad baseline, while a permanently failing AM can't block
+     notifications for the healthy ones. Stale AM IDs that no longer resolve
+     are ignored; an empty selection covers all AMs.
   4. 32 notification categories (`ALERT_0` … `ALERT_31`) are pre-registered;
      each notification picks the one whose action set matches the URLs it
      actually has (bitmask: source=1, silence=2, runbook=4, dashboard=8,
