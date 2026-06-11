@@ -23,7 +23,8 @@ enum AlertAggregator {
     /// produced by multiple alertmanagers the first one in sidebar order
     /// wins and later duplicates are dropped. `filter.selectedAlertmanagerIDs`
     /// is treated as an unordered set membership filter rather than the
-    /// iteration order.
+    /// iteration order; an empty selection means "all alertmanagers"
+    /// (see `Filter.includesAlertmanager(withID:)`).
     ///
     /// - Parameters:
     ///   - filter: The filter whose `selectedAlertmanagerIDs` and predicates
@@ -40,11 +41,11 @@ enum AlertAggregator {
         from cache: [UUID: [GettableAlert]],
         orderedAlertmanagerIDs: [UUID]
     ) -> [GettableAlert] {
-        let selected = Set(filter.selectedAlertmanagerIDs)
         var allAlerts: [GettableAlert] = []
         var seenFingerprints: Set<String> = []
 
-        for alertmanagerID in orderedAlertmanagerIDs where selected.contains(alertmanagerID) {
+        for alertmanagerID in orderedAlertmanagerIDs
+        where filter.includesAlertmanager(withID: alertmanagerID) {
             let cached = cache[alertmanagerID] ?? []
             for alert in cached {
                 if !seenFingerprints.contains(alert.fingerprint) {

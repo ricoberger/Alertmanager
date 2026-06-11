@@ -198,12 +198,12 @@ struct FilterDetailView: View {
     /// which subscribes to `.alertsDidUpdate` and checks all filters
     /// independently of which view is visible.
     private func updateAlerts() {
-        let selected = Set(filter.selectedAlertmanagerIDs)
         var allAlerts: [GettableAlert] = []
         var seenFingerprints: Set<String> = []
         var anyLoading = false
 
-        for alertmanager in alertmanagers where selected.contains(alertmanager.id) {
+        for alertmanager in alertmanagers
+        where filter.includesAlertmanager(withID: alertmanager.id) {
             let alerts = AlertsManager.shared.alertsByAlertmanager[alertmanager.id] ?? []
 
             for alert in alerts {
@@ -225,12 +225,12 @@ struct FilterDetailView: View {
     }
 
     /// Forces an out-of-band refresh on every alertmanager referenced by
-    /// the filter, bypassing the polling cadence.
+    /// the filter, bypassing the polling cadence. An empty selection
+    /// refreshes all alertmanagers.
     private func refreshAlerts() {
-        for alertmanagerId in filter.selectedAlertmanagerIDs {
-            if let alertmanager = alertmanagers.first(where: { $0.id == alertmanagerId }) {
-                AlertsManager.shared.refresh(alertmanager: alertmanager)
-            }
+        for alertmanager in alertmanagers
+        where filter.includesAlertmanager(withID: alertmanager.id) {
+            AlertsManager.shared.refresh(alertmanager: alertmanager)
         }
     }
 
@@ -244,8 +244,8 @@ struct FilterDetailView: View {
     /// nothing matches (which can happen briefly when caches are still being
     /// populated).
     private func findAlertmanager(for alert: GettableAlert) -> Alertmanager? {
-        let selected = Set(filter.selectedAlertmanagerIDs)
-        for alertmanager in alertmanagers where selected.contains(alertmanager.id) {
+        for alertmanager in alertmanagers
+        where filter.includesAlertmanager(withID: alertmanager.id) {
             let alertmanagerAlerts =
                 AlertsManager.shared.alertsByAlertmanager[alertmanager.id] ?? []
             if alertmanagerAlerts.contains(where: { $0.id == alert.id }) {
