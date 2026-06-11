@@ -140,15 +140,25 @@ class AlertsManager {
         refreshTimers[alertmanager.id] = timer
     }
 
-    /// Stops polling for `alertmanager` and cancels any in-flight fetch.
-    /// Safe to call when no timer is installed. Should be called before
-    /// deleting the model so timer callbacks don't fire against a deleted
-    /// entity.
+    /// Stops polling for `alertmanager`, cancels any in-flight fetch, and
+    /// clears all cached state for it. Safe to call when no timer is
+    /// installed. Should be called before deleting the model so timer
+    /// callbacks don't fire against a deleted entity and its alerts,
+    /// errors, and loading flags don't linger in the caches forever.
     func stopMonitoring(alertmanager: Alertmanager) {
         refreshTimers[alertmanager.id]?.invalidate()
         refreshTimers[alertmanager.id] = nil
         inFlightTasks[alertmanager.id]?.cancel()
         inFlightTasks[alertmanager.id] = nil
+
+        // Drop the per-alertmanager caches. The entries would otherwise
+        // accumulate for every alertmanager ever deleted during the
+        // app's lifetime. The cancelled fetch task bails out before
+        // writing (see `fetchAlerts`), so it cannot resurrect them.
+        alertsByAlertmanager[alertmanager.id] = nil
+        lastRefreshByAlertmanager[alertmanager.id] = nil
+        isLoadingByAlertmanager[alertmanager.id] = nil
+        errorByAlertmanager[alertmanager.id] = nil
     }
 
     /// Triggers a one-shot out-of-band fetch without disturbing the
@@ -187,11 +197,19 @@ class AlertsManager {
 
             do {
                 let fetchedAlerts = try await service.fetchAlerts(for: alertmanager)
+                // A cancelled fetch means `stopMonitoring` ran (the entity
+                // is being deleted) and already cleared the caches — bail
+                // out before any write resurrects entries for it.
+                guard !Task.isCancelled else { return }
                 alertsByAlertmanager[alertmanager.id] = fetchedAlerts.sorted {
                     $0.startsAt > $1.startsAt
                 }
                 lastRefreshByAlertmanager[alertmanager.id] = Date()
             } catch {
+                // Same cancellation guard as above: URLSession surfaces a
+                // cancelled task as an error, which would otherwise be
+                // recorded in `errorByAlertmanager`.
+                guard !Task.isCancelled else { return }
                 errorByAlertmanager[alertmanager.id] = error.localizedDescription
                 print("Error fetching alerts for alertmanager \(alertmanager.name): \(error)")
             }
