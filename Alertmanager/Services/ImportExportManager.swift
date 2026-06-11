@@ -230,8 +230,11 @@ class ImportExportManager {
     ///   `(name, url)` pair; otherwise inserted. A name → id map is
     ///   built (using either new or existing ids) so filters can be
     ///   resolved.
-    /// - **Filters**: always inserted; alertmanager names that don't
-    ///   resolve are dropped from `selectedAlertmanagerIDs`.
+    /// - **Filters**: skipped if an existing filter has the same name;
+    ///   otherwise inserted. Alertmanager names that don't resolve are
+    ///   dropped from `selectedAlertmanagerIDs`. Together with the
+    ///   alertmanager dedup this makes re-importing the same file a
+    ///   no-op.
     /// - **Settings**: when present, overwrite the current settings;
     ///   the menu-bar filter is re-resolved by name against the just
     ///   imported set.
@@ -239,7 +242,8 @@ class ImportExportManager {
     /// - Returns: counts of newly inserted alertmanagers and filters,
     ///   plus a flag indicating whether settings were restored.
     static func importData(
-        from data: Data, modelContext: ModelContext, existingAlertmanagers: [Alertmanager]
+        from data: Data, modelContext: ModelContext, existingAlertmanagers: [Alertmanager],
+        existingFilters: [Filter]
     ) throws -> (alertmanagers: Int, filters: Int, settingsRestored: Bool) {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
@@ -274,9 +278,12 @@ class ImportExportManager {
                 importedAlertmanagersCount += 1
             } else {
                 // Already present — record the existing id so filters
-                // can still resolve their references.
+                // can still resolve their references. Match on the same
+                // `(name, url)` pair as the `exists` check above; a
+                // name-only lookup could map to a different entry that
+                // happens to share the name.
                 if let existing = existingAlertmanagers.first(where: {
-                    $0.name == exportAlertmanager.name
+                    $0.name == exportAlertmanager.name && $0.url == exportAlertmanager.url
                 }) {
                     alertmanagerNameToId[exportAlertmanager.name] = existing.id
                 }
@@ -289,6 +296,15 @@ class ImportExportManager {
         var filterNameToId: [String: UUID] = [:]
 
         for exportFilter in exportData.filters {
+            // De-duplicate against existing filters by name — mirroring
+            // the alertmanager dedup above — so re-importing the same
+            // file doesn't multiply filters. The existing id is still
+            // recorded so the menu-bar filter setting can resolve.
+            if let existing = existingFilters.first(where: { $0.name == exportFilter.name }) {
+                filterNameToId[exportFilter.name] = existing.id
+                continue
+            }
+
             // Drop alertmanager references whose names are unknown in
             // this store. (`compactMap` silently filters them out.)
             let alertmanagerIds = exportFilter.alertmanagerNames.compactMap { name in
