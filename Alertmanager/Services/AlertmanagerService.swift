@@ -279,6 +279,25 @@ class AlertmanagerService {
 
     /// Executes `command` via `/bin/sh -c` and returns its trimmed stdout.
     ///
+    /// The blocking work (process launch, pipe reads, exit wait) runs on a
+    /// background queue bridged through a continuation — the service is
+    /// `@MainActor`, and waiting for the child process inline would freeze
+    /// the UI for the duration of the command on every poll.
+    private func executeCommand(_ command: String) async throws -> String {
+        try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    continuation.resume(returning: try Self.runShellCommand(command))
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    /// Synchronously runs `command` via `/bin/sh -c` and returns its trimmed
+    /// stdout. Must be called from a background queue — see `executeCommand`.
+    ///
     /// The child process inherits the current environment with two
     /// adjustments:
     /// - `HOME` is set if missing (some tools require it).
@@ -286,13 +305,15 @@ class AlertmanagerService {
     ///   so Homebrew-installed binaries (e.g. `aws`, `gcloud`) resolve
     ///   even when the app is launched outside a shell.
     ///
-    /// Stderr is captured and logged regardless of exit status. A
-    /// non-zero exit or an empty stdout is reported as
+    /// Stdout and stderr are drained to EOF *before* waiting for the exit
+    /// status so a command emitting more than the pipe buffer cannot
+    /// deadlock against an un-read pipe. Stderr is logged regardless of
+    /// exit status. A non-zero exit or an empty stdout is reported as
     /// `.tokenRetrievalFailed` with as much context as possible.
     ///
     /// Requires the app to remain non-sandboxed (`Process` is not
     /// available in the sandbox).
-    private func executeCommand(_ command: String) async throws -> String {
+    private nonisolated static func runShellCommand(_ command: String) throws -> String {
         let process = Process()
         let pipe = Pipe()
         let errorPipe = Pipe()
@@ -321,8 +342,11 @@ class AlertmanagerService {
 
         do {
             try process.run()
-            process.waitUntilExit()
 
+            // Read both pipes to EOF before waiting for the exit status.
+            // EOF arrives when the child closes its ends on exit, so the
+            // subsequent waitUntilExit returns promptly and the child can
+            // never block on a full, un-read pipe buffer.
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             let output =
                 String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -332,6 +356,8 @@ class AlertmanagerService {
             let errorOutput =
                 String(data: errorData, encoding: .utf8)?.trimmingCharacters(
                     in: .whitespacesAndNewlines) ?? ""
+
+            process.waitUntilExit()
 
             // Surface stderr even on success — many tools emit warnings
             // or progress information there.
