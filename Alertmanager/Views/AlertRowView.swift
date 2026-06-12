@@ -106,14 +106,7 @@ struct AlertRowView: View {
                     timeBadge
                     severityBadge
                     ForEach(customLabelBadges, id: \.0) { key, value, color in
-                        Text(value.uppercased())
-                            .font(.caption)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(color)
-                            .cornerRadius(4)
+                        badge(value.uppercased(), background: color)
                     }
                 }
             }
@@ -342,28 +335,35 @@ struct AlertRowView: View {
         return alertmanager.url
     }
 
-    /// Color-coded severity pill rendered in the row header.
-    private var severityBadge: some View {
-        Text(alert.severity.uppercased())
+    /// Renders a single-line badge pill used in the row header.
+    ///
+    /// The text never wraps: when the window is too narrow for the full
+    /// content it is truncated with a trailing ellipsis instead of growing
+    /// the badge onto multiple lines (which would change the collapsed
+    /// row's height).
+    private func badge(
+        _ text: String, background: Color, fontWeight: Font.Weight = .bold
+    ) -> some View {
+        Text(text)
             .font(.caption)
-            .fontWeight(.bold)
+            .fontWeight(fontWeight)
+            .lineLimit(1)
+            .truncationMode(.tail)
             .foregroundColor(.white)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(severityColor)
+            .background(background)
             .cornerRadius(4)
+    }
+
+    /// Color-coded severity pill rendered in the row header.
+    private var severityBadge: some View {
+        badge(alert.severity.uppercased(), background: severityColor)
     }
 
     /// Relative-time pill ("2m ago", etc.) rendered in the row header.
     private var timeBadge: some View {
-        Text(relativeTime(from: alert.startsAt))
-            .font(.caption)
-            .fontWeight(.medium)
-            .foregroundColor(.white)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(Color.gray)
-            .cornerRadius(4)
+        badge(relativeTime(from: alert.startsAt), background: .gray, fontWeight: .medium)
     }
 
     /// Maps a severity label to a visual color. Unknown values fall back
