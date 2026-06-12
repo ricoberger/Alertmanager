@@ -45,63 +45,40 @@ struct MenuBarContentView: View {
     /// they originated from (needed for deep-link construction in
     /// `AlertRowView`).
     ///
-    /// The filter's `selectedAlertmanagerIDs` narrows the source set; an
-    /// empty list means "all alertmanagers" (the shared semantic from
-    /// `Filter.includesAlertmanager(withID:)`). Alerts that share a
-    /// `fingerprint` across multiple alertmanagers are deduplicated; the
-    /// alertmanager that appears earliest in sidebar order wins and
-    /// determines which entity is paired with the surviving alert (so
-    /// `AlertRowView` builds a deterministic deep link). Results are
-    /// sorted by most-recently-started first.
+    /// Aggregation (sidebar-order visitation, dedup by fingerprint, filter
+    /// predicates, newest-first sort) is delegated to
+    /// `AlertAggregator.alertsWithSources`, the same helper the filter
+    /// detail view uses — so the popup and the main window always agree.
     private var filteredAlerts: [(alert: GettableAlert, alertmanager: Alertmanager)] {
         guard let filter = selectedFilter else { return [] }
-
-        let relevantAlertmanagers = alertmanagers.filter {
-            filter.includesAlertmanager(withID: $0.id)
-        }
-
-        var result: [(GettableAlert, Alertmanager)] = []
-        var seenFingerprints: Set<String> = []
-        for alertmanager in relevantAlertmanagers {
-            let alerts = alertsManager.getAlerts(for: alertmanager)
-            let matched = filter.apply(to: alerts)
-            for alert in matched where seenFingerprints.insert(alert.fingerprint).inserted {
-                result.append((alert, alertmanager))
-            }
-        }
-
-        return result.sorted { $0.0.startsAt > $1.0.startsAt }
+        return AlertAggregator.alertsWithSources(
+            for: filter,
+            from: alertsManager.alertsByAlertmanager,
+            orderedAlertmanagers: alertmanagers
+        )
     }
 
     var body: some View {
         VStack(spacing: 0) {
             if menuBarFilterID == nil {
                 // Empty state: user hasn't configured a filter for the menu bar.
-                VStack(spacing: 16) {
-                    Image(systemName: "line.3.horizontal.decrease.circle")
-                        .font(.system(size: 48))
-                        .foregroundColor(.orange)
-                    Text("No Filter Selected")
-                        .font(.headline)
-                    Text("Select a filter in the settings to show alerts here")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
+                ContentPlaceholderView(
+                    systemImage: "line.3.horizontal.decrease.circle",
+                    iconColor: .orange,
+                    title: "No Filter Selected",
+                    message: "Select a filter in the settings to show alerts here"
+                )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .accessibilityIdentifier("menubar-no-filter-state")
             } else if filteredAlerts.isEmpty {
                 // Empty state: filter is configured but currently matches
                 // nothing.
-                VStack(spacing: 16) {
-                    Image(systemName: "checkmark.circle")
-                        .font(.system(size: 48))
-                        .foregroundColor(.green)
-                    Text("No Alerts")
-                        .font(.headline)
-                    Text("No alerts found for filter criteria")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
+                ContentPlaceholderView(
+                    systemImage: "checkmark.circle",
+                    iconColor: .green,
+                    title: "No Alerts",
+                    message: "No alerts found for filter criteria"
+                )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .accessibilityIdentifier("menubar-empty-state")
             } else {

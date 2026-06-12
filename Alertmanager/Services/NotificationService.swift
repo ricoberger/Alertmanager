@@ -359,37 +359,25 @@ class NotificationService: NSObject {
 
             // Source — present only when the alert carries a generatorURL.
             if let generatorURL = alert.generatorURL,
-                let sanitized = sanitizeURL(generatorURL)
+                let sanitized = AlertDeepLinks.sanitize(generatorURL)
             {
                 userInfo[NotificationUserInfoKey.sourceURL] = sanitized
             }
 
-            // Silence — always constructible when the alertmanager is known.
-            // For Grafana backends, resolve the datasource name from its UID
-            // first (unless the UID is already the built-in "grafana" value).
-            if let alertmanager {
-                let configuredUID =
-                    alertmanager.grafanaAlertmanager.isEmpty
-                    ? nil : alertmanager.grafanaAlertmanager
-                let resolvedName: String?
-                if alertmanager.isGrafana, let uid = configuredUID, uid != "grafana" {
-                    resolvedName = await service.fetchDatasourceName(for: uid, in: alertmanager)
-                } else {
-                    resolvedName = nil
-                }
-
-                if let silenceURL = buildSilenceURL(
-                    for: alert,
-                    alertmanager: alertmanager,
-                    resolvedDatasourceName: resolvedName
-                ) {
-                    userInfo[NotificationUserInfoKey.silenceURL] = silenceURL
-                }
+            // Silence — constructible when the alertmanager is known (and,
+            // for Grafana backends, a datasource is configured). URL
+            // construction, including the Grafana datasource-name lookup,
+            // is shared with AlertRowView's Silence button via
+            // `AlertmanagerService.resolveSilenceURL`.
+            if let alertmanager,
+                let silenceURL = await service.resolveSilenceURL(for: alert, in: alertmanager)
+            {
+                userInfo[NotificationUserInfoKey.silenceURL] = silenceURL
             }
 
             // Runbook — present only when the annotation exists.
             if let runbookURL = alert.runbookURL,
-                let sanitized = sanitizeURL(runbookURL)
+                let sanitized = AlertDeepLinks.sanitize(runbookURL)
             {
                 userInfo[NotificationUserInfoKey.runbookURL] = sanitized
             }
@@ -398,12 +386,12 @@ class NotificationService: NSObject {
             if let alertmanager, alertmanager.isGrafana,
                 let dashboardUID = alert.annotations["__dashboardUid__"]
             {
-                let dashboardURL = "\(alertmanager.url)/d/\(dashboardUID)"
-                userInfo[NotificationUserInfoKey.dashboardURL] = dashboardURL
+                userInfo[NotificationUserInfoKey.dashboardURL] = AlertDeepLinks.dashboardURL(
+                    alertmanager: alertmanager, dashboardUID: dashboardUID)
 
                 if let panelId = alert.annotations["__panelId__"] {
-                    let panelURL = "\(alertmanager.url)/d/\(dashboardUID)?viewPanel=\(panelId)"
-                    userInfo[NotificationUserInfoKey.panelURL] = panelURL
+                    userInfo[NotificationUserInfoKey.panelURL] = AlertDeepLinks.panelURL(
+                        alertmanager: alertmanager, dashboardUID: dashboardUID, panelId: panelId)
                 }
             }
 
@@ -429,7 +417,7 @@ class NotificationService: NSObject {
         print("Sent \(alerts.count) notification(s) for filter '\(filter.name)'")
     }
 
-    // MARK: - URL helpers
+    // MARK: - Alertmanager resolution
 
     /// Finds the alertmanager that produced `alert`.
     ///
@@ -446,25 +434,6 @@ class NotificationService: NSObject {
             }
         }
         return nil
-    }
-
-    /// Builds the silence URL for `alert` against `alertmanager`.
-    /// Delegates to `AlertDeepLinks.silenceURL(for:alertmanager:resolvedDatasourceName:)`.
-    private func buildSilenceURL(
-        for alert: GettableAlert,
-        alertmanager: Alertmanager,
-        resolvedDatasourceName: String? = nil
-    ) -> String? {
-        AlertDeepLinks.silenceURL(
-            for: alert,
-            alertmanager: alertmanager,
-            resolvedDatasourceName: resolvedDatasourceName
-        )
-    }
-
-    /// Sanitizes a URL string via `AlertDeepLinks.sanitize(_:)`.
-    private func sanitizeURL(_ urlString: String) -> String? {
-        AlertDeepLinks.sanitize(urlString)
     }
 }
 

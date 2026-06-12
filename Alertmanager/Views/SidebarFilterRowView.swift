@@ -43,14 +43,7 @@ struct SidebarFilterRowView: View {
             } else {
                 // Capsule badge with the matching-alert count. Red signals
                 // there are matches, green signals no matches.
-                Text("\(alertCount)")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(alertCount > 0 ? Color.red : Color.green)
-                    .clipShape(Capsule())
+                CountBadge(count: alertCount)
             }
         }
         .onAppear {

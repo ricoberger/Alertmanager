@@ -107,6 +107,47 @@ class AlertmanagerService {
         }
     }
 
+    // MARK: - Public Methods (Silence URL)
+
+    /// Resolves the "create silence" URL for `alert` against `alertmanager`.
+    ///
+    /// Shared by `AlertRowView` (Silence button) and `NotificationService`
+    /// (notification action) so both build identical URLs. For Grafana
+    /// backends the datasource *name* is resolved from the configured UID
+    /// first (see `fetchDatasourceName(for:in:)`) because Grafana's silence
+    /// form expects the name; the built-in `"grafana"` value is used
+    /// verbatim without a lookup.
+    ///
+    /// - Parameters:
+    ///   - alert: The alert whose labels populate the silence matchers.
+    ///   - alertmanager: The backend the alert was fetched from.
+    /// - Returns: The silence URL, or `nil` for a Grafana backend without a
+    ///   configured datasource — the resulting URL would target nothing
+    ///   actionable.
+    func resolveSilenceURL(
+        for alert: GettableAlert, in alertmanager: Alertmanager
+    ) async -> String? {
+        let configuredUID =
+            alertmanager.grafanaAlertmanager.isEmpty ? nil : alertmanager.grafanaAlertmanager
+
+        if alertmanager.isGrafana, configuredUID == nil {
+            return nil
+        }
+
+        let resolvedName: String?
+        if alertmanager.isGrafana, let uid = configuredUID, uid != "grafana" {
+            resolvedName = await fetchDatasourceName(for: uid, in: alertmanager)
+        } else {
+            resolvedName = nil
+        }
+
+        return AlertDeepLinks.silenceURL(
+            for: alert,
+            alertmanager: alertmanager,
+            resolvedDatasourceName: resolvedName
+        )
+    }
+
     // MARK: - Public Methods (Auth credentials)
 
     /// Resolves the configured authentication into a human-readable

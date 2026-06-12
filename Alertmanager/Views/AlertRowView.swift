@@ -432,36 +432,18 @@ struct AlertRowView: View {
 
     /// Builds and opens the "create silence" URL for this alert.
     ///
-    /// Two backend variants are supported:
-    /// - **Grafana**: targets `{url}/alerting/silence/new` with one
-    ///   `matcher=key%3Dvalue` query item per label, and an
-    ///   `alertmanager=` parameter set to the datasource *name*. When the
-    ///   resolved UID is not `"grafana"`, the name is resolved via
-    ///   `GET {url}/api/datasources/uid/{uid}` because Grafana expects the
-    ///   human-readable name rather than the datasource UID.
-    /// - **Standard Alertmanager**: targets `{url}/#/silences/new` with a
-    ///   single `filter={k1="v1", k2="v2"}` query value, percent-encoded.
+    /// URL construction — including resolving the Grafana datasource name
+    /// from its UID — is shared with the notification actions via
+    /// `AlertmanagerService.resolveSilenceURL(for:in:)`. The URL is `nil`
+    /// for a Grafana backend without a configured datasource.
     private func openSilenceURL() async {
-        let configuredUID =
-            alertmanager.grafanaAlertmanager.isEmpty ? nil : alertmanager.grafanaAlertmanager
-        let resolvedName: String?
-        if alertmanager.isGrafana, let uid = configuredUID, uid != "grafana" {
-            let service = AlertmanagerService()
-            resolvedName = await service.fetchDatasourceName(for: uid, in: alertmanager)
-        } else {
-            resolvedName = nil
-        }
-
-        if alertmanager.isGrafana, configuredUID == nil {
+        let service = AlertmanagerService()
+        guard let urlString = await service.resolveSilenceURL(for: alert, in: alertmanager)
+        else {
             print("No Grafana alertmanager configured")
             return
         }
 
-        let urlString = AlertDeepLinks.silenceURL(
-            for: alert,
-            alertmanager: alertmanager,
-            resolvedDatasourceName: resolvedName
-        )
         print("Opening silence URL: \(urlString)")
         openURL(urlString)
     }
