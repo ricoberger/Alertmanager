@@ -231,11 +231,16 @@ class NotificationService: NSObject {
     /// Diffs the current alert set against the previously seen set for
     /// `filter` and notifies on additions.
     ///
-    /// - First call for a given filter id where all referenced alertmanagers
-    ///   have completed at least one fetch: records the baseline silently.
-    ///   If some alertmanagers haven't fetched yet the call is skipped
-    ///   entirely so partial data doesn't contaminate the baseline and
-    ///   cause spurious notifications once the remaining fetches land.
+    /// - First call for a given filter id where all covered alertmanagers
+    ///   have completed at least one fetch attempt (successful or failed):
+    ///   records the baseline silently. If some alertmanagers haven't
+    ///   fetched yet the call is skipped entirely so partial data doesn't
+    ///   contaminate the baseline and cause spurious notifications once
+    ///   the remaining fetches land. An empty
+    ///   `filter.selectedAlertmanagerIDs` covers all alertmanagers, and
+    ///   IDs that no longer resolve to a known alertmanager (deleted
+    ///   entries) are ignored — both would otherwise gate the baseline on
+    ///   alertmanagers that can never report a fetch.
     /// - Subsequent calls: any fingerprint not in the previous set is
     ///   considered new, and a notification is dispatched per new alert.
     /// - The seen-set is then replaced with `currentFingerprints` (alerts
@@ -253,12 +258,23 @@ class NotificationService: NSObject {
     func checkForNewAlerts(filter: Filter, alerts: [GettableAlert], alertmanagers: [Alertmanager]) {
         guard filter.notificationsEnabled else { return }
 
-        // Wait until every alertmanager referenced by this filter has
-        // completed at least one fetch. This prevents a race where the
-        // first alertmanager to finish sets a partial baseline; when the
-        // second finishes its alerts would all appear "new".
-        let allFetched = filter.selectedAlertmanagerIDs.allSatisfy {
-            AlertsManager.shared.lastRefreshByAlertmanager[$0] != nil
+        // Wait until every alertmanager covered by this filter has
+        // completed at least one fetch attempt. This prevents a race where
+        // the first alertmanager to finish sets a partial baseline; when
+        // the second finishes its alerts would all appear "new". Gating on
+        // completed *attempts* (rather than successes) keeps one
+        // permanently failing alertmanager from blocking notifications for
+        // the healthy ones forever. The covered set is resolved against
+        // the known alertmanagers so stale IDs left behind by deleted
+        // entries — which can never fetch again — don't stall the
+        // baseline either; an empty selection covers all alertmanagers.
+        let knownIDs = alertmanagers.map(\.id)
+        let coveredIDs =
+            filter.selectedAlertmanagerIDs.isEmpty
+            ? knownIDs
+            : filter.selectedAlertmanagerIDs.filter { knownIDs.contains($0) }
+        let allFetched = coveredIDs.allSatisfy {
+            AlertsManager.shared.hasCompletedFetchByAlertmanager[$0] == true
         }
         guard allFetched else { return }
 
