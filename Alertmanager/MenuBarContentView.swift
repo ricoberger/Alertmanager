@@ -45,8 +45,9 @@ struct MenuBarContentView: View {
     /// they originated from (needed for deep-link construction in
     /// `AlertRowView`).
     ///
-    /// The filter's `selectedAlertmanagerIDs` narrows the source set;
-    /// an empty list means "all alertmanagers". Alerts that share a
+    /// The filter's `selectedAlertmanagerIDs` narrows the source set; an
+    /// empty list means "all alertmanagers" (the shared semantic from
+    /// `Filter.includesAlertmanager(withID:)`). Alerts that share a
     /// `fingerprint` across multiple alertmanagers are deduplicated; the
     /// alertmanager that appears earliest in sidebar order wins and
     /// determines which entity is paired with the surviving alert (so
@@ -55,13 +56,8 @@ struct MenuBarContentView: View {
     private var filteredAlerts: [(alert: GettableAlert, alertmanager: Alertmanager)] {
         guard let filter = selectedFilter else { return [] }
 
-        let relevantAlertmanagers: [Alertmanager]
-        if filter.selectedAlertmanagerIDs.isEmpty {
-            relevantAlertmanagers = alertmanagers
-        } else {
-            relevantAlertmanagers = alertmanagers.filter {
-                filter.selectedAlertmanagerIDs.contains($0.id)
-            }
+        let relevantAlertmanagers = alertmanagers.filter {
+            filter.includesAlertmanager(withID: $0.id)
         }
 
         var result: [(GettableAlert, Alertmanager)] = []

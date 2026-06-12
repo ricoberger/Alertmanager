@@ -60,7 +60,9 @@ final class Filter {
     var name: String
 
     /// IDs of `Alertmanager` entries this filter applies to. An empty array
-    /// is interpreted by callers as "all alertmanagers".
+    /// means "all alertmanagers" — use `includesAlertmanager(withID:)`
+    /// instead of testing membership directly so that semantic is applied
+    /// consistently.
     var selectedAlertmanagerIDs: [UUID]
 
     /// Alert states to include (e.g. `.active`, `.suppressed`,
@@ -150,6 +152,18 @@ final class Filter {
         self.sortOrder = sortOrder
         self.notificationsEnabled = notificationsEnabled
         self.labelMatchers = labelMatchers
+    }
+
+    /// Whether this filter sources alerts from the given alertmanager.
+    ///
+    /// An empty `selectedAlertmanagerIDs` means "all alertmanagers".
+    /// Centralised here so every alert surface (sidebar badge, detail
+    /// view, menu bar popup, notifications) agrees on that semantic.
+    ///
+    /// - Parameter id: The `Alertmanager.id` to test.
+    /// - Returns: `true` when the filter covers the alertmanager.
+    func includesAlertmanager(withID id: UUID) -> Bool {
+        selectedAlertmanagerIDs.isEmpty || selectedAlertmanagerIDs.contains(id)
     }
 
     /// Returns the subset of `alerts` that satisfy every configured
