@@ -40,6 +40,7 @@ struct AlertsManagerStopMonitoringTests {
         manager.lastRefreshByAlertmanager[alertmanager.id] = Date()
         manager.isLoadingByAlertmanager[alertmanager.id] = false
         manager.errorByAlertmanager[alertmanager.id] = "boom"
+        manager.hasCompletedFetchByAlertmanager[alertmanager.id] = true
 
         manager.stopMonitoring(alertmanager: alertmanager)
 
@@ -47,6 +48,7 @@ struct AlertsManagerStopMonitoringTests {
         #expect(manager.lastRefreshByAlertmanager[alertmanager.id] == nil)
         #expect(manager.isLoadingByAlertmanager[alertmanager.id] == nil)
         #expect(manager.errorByAlertmanager[alertmanager.id] == nil)
+        #expect(manager.hasCompletedFetchByAlertmanager[alertmanager.id] == nil)
     }
 
     @Test("Leaves other alertmanagers' caches untouched")

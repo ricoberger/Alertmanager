@@ -166,6 +166,7 @@ class AlertsManager {
         lastRefreshByAlertmanager[alertmanager.id] = nil
         isLoadingByAlertmanager[alertmanager.id] = nil
         errorByAlertmanager[alertmanager.id] = nil
+        hasCompletedFetchByAlertmanager[alertmanager.id] = nil
     }
 
     /// Triggers a one-shot out-of-band fetch without disturbing the
