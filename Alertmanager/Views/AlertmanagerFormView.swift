@@ -249,8 +249,10 @@ struct AlertmanagerFormView: View {
     /// Reassembles the nested `AuthenticationType` from the flat UI
     /// selectors, then either mutates the existing entity (edit mode) or
     /// inserts a new one with the next `sortOrder` (create mode). In both
-    /// cases polling is restarted so the change takes effect immediately,
-    /// and the sheet is dismissed.
+    /// cases polling is restarted so the change takes effect immediately.
+    /// The model context is explicitly saved (matching `FilterFormView`)
+    /// so the change is visible to `@Query` consumers immediately; the
+    /// sheet is dismissed only on a successful save.
     private func saveAlertmanager() {
         let authType = Self.buildAuthType(
             selectedAuth: selectedAuthType,
@@ -291,7 +293,12 @@ struct AlertmanagerFormView: View {
             AlertsManager.shared.startMonitoring(alertmanager: newAlertmanager)
         }
 
-        dismiss()
+        do {
+            try modelContext.save()
+            dismiss()
+        } catch {
+            print("Failed to save alertmanager: \(error)")
+        }
     }
 }
 

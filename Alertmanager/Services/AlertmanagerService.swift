@@ -12,8 +12,11 @@ enum AlertmanagerError: LocalizedError {
     case invalidURL
     /// The server responded with HTTP 401 or 403.
     case authenticationFailed
-    /// Underlying transport failure (DNS, TLS, timeout, etc.) or a
-    /// non-2xx, non-auth status code.
+    /// The server responded with a non-2xx status code other than the
+    /// auth failures above. Carries the status code so the UI can show
+    /// what the backend actually returned.
+    case serverError(statusCode: Int)
+    /// Underlying transport failure (DNS, TLS, timeout, etc.).
     case networkError(Error)
     /// The response body could not be decoded into the expected type.
     case decodingError(Error)
@@ -27,6 +30,8 @@ enum AlertmanagerError: LocalizedError {
             return "Invalid Alertmanager URL"
         case .authenticationFailed:
             return "Authentication failed"
+        case .serverError(let statusCode):
+            return "Server returned HTTP \(statusCode)"
         case .networkError(let error):
             return "Network error: \(error.localizedDescription)"
         case .decodingError(let error):
@@ -225,7 +230,7 @@ class AlertmanagerService {
     /// Maps HTTP status codes to `AlertmanagerError`:
     /// - 200–299 → success, decoded as `T` using ISO-8601 dates.
     /// - 401 / 403 → `.authenticationFailed`
-    /// - other non-2xx → `.networkError(URLError(.badServerResponse))`
+    /// - other non-2xx → `.serverError(statusCode:)`
     ///
     /// Transport failures bubble up as `.networkError`; decode failures
     /// bubble up as `.decodingError`. `AlertmanagerError`s thrown from
@@ -242,7 +247,7 @@ class AlertmanagerService {
                 if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
                     throw AlertmanagerError.authenticationFailed
                 }
-                throw AlertmanagerError.networkError(URLError(.badServerResponse))
+                throw AlertmanagerError.serverError(statusCode: httpResponse.statusCode)
             }
 
             let decoder = JSONDecoder()

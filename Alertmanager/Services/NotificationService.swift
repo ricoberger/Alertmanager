@@ -11,7 +11,11 @@ import UserNotifications
 
 /// `userInfo` keys used to ferry deep-link URLs through the notification
 /// payload to the action handler in `NotificationService`.
-enum NotificationUserInfoKey {
+///
+/// `nonisolated` so the constants are also usable from the nonisolated
+/// `UNUserNotificationCenterDelegate` methods (the project-wide `MainActor`
+/// default would otherwise isolate them).
+nonisolated enum NotificationUserInfoKey {
     static let sourceURL = "sourceURL"
     static let silenceURL = "silenceURL"
     static let runbookURL = "runbookURL"
@@ -24,7 +28,9 @@ enum NotificationUserInfoKey {
 }
 
 /// `UNNotificationAction` identifiers used by `NotificationService`.
-enum NotificationActionIdentifier {
+///
+/// `nonisolated` for the same reason as `NotificationUserInfoKey`.
+nonisolated enum NotificationActionIdentifier {
     static let openSource = "OPEN_SOURCE"
     static let openSilence = "OPEN_SILENCE"
     static let openRunbook = "OPEN_RUNBOOK"
@@ -167,26 +173,32 @@ class NotificationService: NSObject {
             (
                 0,
                 UNNotificationAction(
-                    identifier: "OPEN_SOURCE", title: "Source", options: .foreground)
+                    identifier: NotificationActionIdentifier.openSource, title: "Source",
+                    options: .foreground)
             ),
             (
                 1,
                 UNNotificationAction(
-                    identifier: "OPEN_SILENCE", title: "Silence", options: .foreground)
+                    identifier: NotificationActionIdentifier.openSilence, title: "Silence",
+                    options: .foreground)
             ),
             (
                 2,
                 UNNotificationAction(
-                    identifier: "OPEN_RUNBOOK", title: "Runbook", options: .foreground)
+                    identifier: NotificationActionIdentifier.openRunbook, title: "Runbook",
+                    options: .foreground)
             ),
             (
                 3,
                 UNNotificationAction(
-                    identifier: "OPEN_DASHBOARD", title: "Dashboard", options: .foreground)
+                    identifier: NotificationActionIdentifier.openDashboard, title: "Dashboard",
+                    options: .foreground)
             ),
             (
                 4,
-                UNNotificationAction(identifier: "OPEN_PANEL", title: "Panel", options: .foreground)
+                UNNotificationAction(
+                    identifier: NotificationActionIdentifier.openPanel, title: "Panel",
+                    options: .foreground)
             ),
         ]
 
@@ -453,16 +465,13 @@ extension NotificationService: UNUserNotificationCenterDelegate {
 
         let userInfo = response.notification.request.content.userInfo
 
-        // Use raw string literals here — the enums are MainActor-isolated
-        // (project-wide default) and cannot be referenced from this
-        // nonisolated delegate method.
-
         // Default tap (user tapped the notification body, not an action
         // button): open the alert-detail window.
         if response.actionIdentifier == UNNotificationDefaultActionIdentifier {
             guard
-                let fingerprint = userInfo["fingerprint"] as? String,
-                let alertmanagerIDString = userInfo["alertmanagerID"] as? String,
+                let fingerprint = userInfo[NotificationUserInfoKey.fingerprint] as? String,
+                let alertmanagerIDString = userInfo[NotificationUserInfoKey.alertmanagerID]
+                    as? String,
                 let alertmanagerID = UUID(uuidString: alertmanagerIDString)
             else { return }
 
@@ -499,16 +508,16 @@ extension NotificationService: UNUserNotificationCenterDelegate {
 
         let urlKey: String
         switch response.actionIdentifier {
-        case "OPEN_SOURCE":
-            urlKey = "sourceURL"
-        case "OPEN_SILENCE":
-            urlKey = "silenceURL"
-        case "OPEN_RUNBOOK":
-            urlKey = "runbookURL"
-        case "OPEN_DASHBOARD":
-            urlKey = "dashboardURL"
-        case "OPEN_PANEL":
-            urlKey = "panelURL"
+        case NotificationActionIdentifier.openSource:
+            urlKey = NotificationUserInfoKey.sourceURL
+        case NotificationActionIdentifier.openSilence:
+            urlKey = NotificationUserInfoKey.silenceURL
+        case NotificationActionIdentifier.openRunbook:
+            urlKey = NotificationUserInfoKey.runbookURL
+        case NotificationActionIdentifier.openDashboard:
+            urlKey = NotificationUserInfoKey.dashboardURL
+        case NotificationActionIdentifier.openPanel:
+            urlKey = NotificationUserInfoKey.panelURL
         default:
             return
         }
