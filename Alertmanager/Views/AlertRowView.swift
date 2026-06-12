@@ -35,7 +35,8 @@ struct AlertRowView: View {
     var isMenuBar: Bool = false
 
     /// When `true`, the row starts in its expanded state. Used by
-    /// `AlertDetailView` to render the alert fully expanded from the outset.
+    /// `ContentView`'s alert-detail pane (notification taps) to render the
+    /// alert fully expanded from the outset.
     var isExpanded: Bool = false
 
     /// Tracks whether the expanded detail section is shown.

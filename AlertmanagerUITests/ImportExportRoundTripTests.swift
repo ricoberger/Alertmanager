@@ -11,9 +11,9 @@ import XCTest
 /// serialized to a real JSON file on disk, the store is wiped via the
 /// Reset Configuration menu command, and the file is then re-imported.
 /// The NSSavePanel / NSOpenPanel UI is bypassed via the
-/// `-uiTestExportPath` / `-uiTestImportPath` launch arguments so the test
-/// doesn't have to drive a system file dialog, and the initial
-/// alertmanager is created via `-uiTestSeedAlertmanagerURL` to avoid
+/// `UI_TEST_EXPORT_PATH` / `UI_TEST_IMPORT_PATH` environment variables so
+/// the test doesn't have to drive a system file dialog, and the initial
+/// alertmanager is created via `UI_TEST_SEED_ALERTMANAGER_URL` to avoid
 /// driving the Add Alertmanager form (which was flaky on CI macOS runners).
 final class ImportExportRoundTripTests: XCTestCase {
     var app: XCUIApplication!
@@ -23,7 +23,7 @@ final class ImportExportRoundTripTests: XCTestCase {
     var roundTripPath: URL!
 
     /// Name of the seeded alertmanager — must match the constant used by
-    /// `seedFromLaunchArgumentsIfNeeded` in `AlertmanagerApp.swift`.
+    /// `seedFromLaunchArgumentsIfNeeded` in `ContentView.swift`.
     let seededName = "Test AM"
     let seededURL = "http://localhost:9093"
 
@@ -70,7 +70,7 @@ final class ImportExportRoundTripTests: XCTestCase {
         XCTAssertTrue(sidebarRow.waitForExistence(timeout: 10))
 
         // 2. Trigger Export — app writes the JSON file directly to
-        // `roundTripPath` because of `-uiTestExportPath`.
+        // `roundTripPath` because of `UI_TEST_EXPORT_PATH`.
         openAlertmanagerMenu()
         app.menuItems["Export Configuration"].click()
 
@@ -104,7 +104,7 @@ final class ImportExportRoundTripTests: XCTestCase {
         XCTAssertTrue(sidebarRow.waitForNonExistence(timeout: 5))
 
         // 4. Trigger Import — app reads from `roundTripPath` because of
-        // `-uiTestImportPath`.
+        // `UI_TEST_IMPORT_PATH`.
         openAlertmanagerMenu()
         app.menuItems["Import Configuration"].click()
 

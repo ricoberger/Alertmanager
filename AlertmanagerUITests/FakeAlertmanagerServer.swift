@@ -11,8 +11,8 @@ import Network
 ///
 /// Listens on `127.0.0.1` with an OS-assigned port. The resolved
 /// `http://127.0.0.1:<port>` URL is passed to the app under test via the
-/// `-uiTestSeedAlertmanagerURL` launch argument, so the seeded `Alertmanager`
-/// row in SwiftData points at this listener.
+/// `UI_TEST_SEED_ALERTMANAGER_URL` environment variable, so the seeded
+/// `Alertmanager` row in SwiftData points at this listener.
 ///
 /// The server is intentionally minimal: it reads up to one buffer of bytes
 /// from each connection, ignores the request line, and writes the configured
@@ -37,7 +37,7 @@ final class FakeAlertmanagerServer {
     private(set) var port: UInt16 = 0
 
     /// Loopback base URL pointing at this listener. Pass to the app via
-    /// `-uiTestSeedAlertmanagerURL`.
+    /// the `UI_TEST_SEED_ALERTMANAGER_URL` environment variable.
     var baseURL: String { "http://127.0.0.1:\(port)" }
 
     init(response: Response) throws {

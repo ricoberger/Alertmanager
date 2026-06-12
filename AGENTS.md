@@ -70,8 +70,11 @@ Alertmanager/
                                local UNNotifications with deep-link actions.
     AlertAggregator.swift   Pure helper: collect+dedupe+filter from cache.
     AlertDeepLinks.swift    Pure helper: source/silence/dashboard/panel URLs.
+    AlertMarkdown.swift     Pure helper: alert → markdown snippet for copying.
     SettingsManager.swift   @Published wrapper around UserDefaults.
     ImportExportManager.swift  JSON v1.0 export/import; references by name.
+    UpdateCheckService.swift   Singleton. One-shot GitHub release probe that
+                               feeds the in-app update banner.
   Views/                    SwiftUI views (form sheets, detail panes, rows).
 AlertmanagerTests/          Swift Testing — model + service logic.
 AlertmanagerUITests/        XCTest — driven via accessibilityIdentifiers.
@@ -89,11 +92,14 @@ AlertmanagerUITests/        XCTest — driven via accessibilityIdentifiers.
   call from multiple `.onAppear` handlers — it replaces any existing timer.
   Concurrent fetches for the same AM are deduplicated via `inFlightTasks`.
 - **Two backend shapes**: a "standard" Prometheus Alertmanager hits
-  `/api/v2/alerts` directly; a "Grafana" entry iterates over
-  `grafanaAlertmanagers` (datasource names) and hits
-  `/api/alertmanager/{name}/api/v2/alerts`. Every alert returned in Grafana mode
-  is tagged with `grafanaAlertmanagerSource = name` and that tag must be
-  preserved end-to-end so silence/dashboard deep-links target the right backend.
+  `/api/v2/alerts` directly; a "Grafana" entry queries the single datasource
+  UID stored in `grafanaAlertmanager` via
+  `/api/alertmanager/{uid}/api/v2/alerts`. Alerts are **not** tagged with
+  their source — views and `NotificationService` re-resolve the producing AM
+  by scanning the per-AM caches (`AlertAggregator.alertsWithSources`,
+  `resolveAlertmanager`). Grafana silence deep-links need the datasource
+  *name*, which `AlertmanagerService.resolveSilenceURL` resolves from the
+  UID at link-build time (the built-in `"grafana"` value is used verbatim).
 - **Notification flow**:
   1. `AlertmanagerApp.onAppear` calls
      `NotificationService.shared.configure(with:)`.
@@ -106,8 +112,9 @@ AlertmanagerUITests/        XCTest — driven via accessibilityIdentifiers.
      doesn't seed a bad baseline, while a permanently failing AM can't block
      notifications for the healthy ones. Stale AM IDs that no longer resolve
      are ignored; an empty selection covers all AMs.
-  4. 32 notification categories (`ALERT_0` … `ALERT_31`) are pre-registered;
-     each notification picks the one whose action set matches the URLs it
+  4. 31 notification categories (`ALERT_1` … `ALERT_31`) are pre-registered
+     (`ALERT_0` — no actions — is deliberately left unregistered); each
+     notification picks the one whose action set matches the URLs it
      actually has (bitmask: source=1, silence=2, runbook=4, dashboard=8,
      panel=16). When adding a new deep-link action, update both
      `registerNotificationCategories` _and_ `categoryIdentifier(for:)`.
@@ -171,9 +178,10 @@ AlertmanagerUITests/        XCTest — driven via accessibilityIdentifiers.
 - **Don't `union` the seen-set** in `NotificationService.checkForNewAlerts`.
   Replacing (not unioning) lets resolved-then-refiring alerts re-notify, which
   is the intended UX. The current code replaces on purpose.
-- **Don't add CI workflows** without confirming intent — the previous
-  `.github/workflows/build.yaml` was removed deliberately in the
-  reimplementation branch.
+- **Don't add build/test CI workflows** without confirming intent — the
+  previous `.github/workflows/build.yaml` was removed deliberately in the
+  reimplementation branch. The existing `continuous-delivery.yaml` and
+  `release.yaml` workflows cover packaging and releases only.
 
 ## When in doubt
 

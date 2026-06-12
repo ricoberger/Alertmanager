@@ -6,7 +6,7 @@
 import Foundation
 
 /// An alert as returned by the Alertmanager `GET /api/v2/alerts` endpoint
-/// (and by Grafana's `GET /api/alertmanager/{name}/api/v2/alerts` endpoint).
+/// (and by Grafana's `GET /api/alertmanager/{uid}/api/v2/alerts` endpoint).
 ///
 /// Conforms to `Identifiable` using `fingerprint` so SwiftUI lists can diff
 /// alerts across refresh cycles without relying on array indices.

@@ -8,10 +8,11 @@ import SwiftUI
 
 /// Content of the `MenuBarExtra` popup window.
 ///
-/// Displays alerts from the user-selected "menu bar filter" (configured in
-/// Settings via `@AppStorage("menuBarFilterID")`). Reads the same SwiftData
-/// store and `AlertsManager` cache as the main window, so polling already
-/// performed by `ContentView` is reused without additional network traffic.
+/// Displays alerts from the user-selected "menu bar filter" (chosen in
+/// Settings, persisted under the `menuBarFilterID` UserDefaults key and read
+/// here via `@AppStorage`). Reads the same SwiftData store and
+/// `AlertsManager` cache as the main window, so polling already performed by
+/// `ContentView` is reused without additional network traffic.
 struct MenuBarContentView: View {
     @Environment(\.modelContext) private var modelContext
 
