@@ -22,9 +22,15 @@ and [Grafana Alerting](https://grafana.com/docs/grafana/latest/alerting/).
   links to the source and a one-click silence action
 - Quick links to runbooks (`runbook_url` annotation) and Grafana dashboards and
   panels (`__dashboardUid__` / `__panelId__` annotations)
+- Copy any alert as Markdown — including the backend URL, resolved credentials,
+  labels, and annotations — ready to paste into chats, issues, or runbooks
+- Custom label badges: map label keys to colors in the settings to surface
+  matching label values next to the alert title
 - Configurable refresh interval (1 minute to 1 hour)
 - Import and export the full configuration (Alertmanagers, filters, settings) as
   JSON
+- Update check on launch that shows an in-app banner when a newer release is
+  available on GitHub
 
 ## Development
 
