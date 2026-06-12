@@ -81,16 +81,12 @@ struct AlertmanagerDetailView: View {
                 // Healthy empty state: backend reachable, no active alerts.
                 VStack {
                     Spacer()
-                    VStack(spacing: 16) {
-                        Image(systemName: "checkmark.circle")
-                            .font(.system(size: 48))
-                            .foregroundColor(.green)
-                        Text("No Alerts")
-                            .font(.headline)
-                        Text("No alerts found for this Alertmanager")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
+                    ContentPlaceholderView(
+                        systemImage: "checkmark.circle",
+                        iconColor: .green,
+                        title: "No Alerts",
+                        message: "No alerts found for this Alertmanager"
+                    )
                     Spacer()
                 }
             } else {
@@ -109,12 +105,7 @@ struct AlertmanagerDetailView: View {
         .navigationTitle(alertmanager.name.isEmpty ? alertmanager.url : alertmanager.name)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                TextField("Search", text: $searchQuery)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(minWidth: 200, maxWidth: 400)
-                    .onSubmit {
-                        searchMatchers = LabelMatcher.parse(query: searchQuery)
-                    }
+                AlertSearchField(query: $searchQuery, matchers: $searchMatchers)
             }
 
             ToolbarItem(placement: .automatic) {

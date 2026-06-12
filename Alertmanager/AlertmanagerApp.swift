@@ -30,10 +30,12 @@ struct AlertmanagerApp: App {
     /// each test launch isolated from prior runs (and from the user's real
     /// data) while still exercising the on-disk persistence path.
     ///
-    /// UI tests can additionally pass `-uiTestSeedAlertmanagerURL <url>` to
-    /// pre-populate the store with a single `Alertmanager` row pointed at the
-    /// given URL (typically a loopback `FakeAlertmanagerServer`). This skips
-    /// the form-typing flow when a test only cares about display behavior.
+    /// UI tests can additionally set the `UI_TEST_SEED_ALERTMANAGER_URL`
+    /// environment variable to pre-populate the store with a single
+    /// `Alertmanager` row pointed at the given URL (typically a loopback
+    /// `FakeAlertmanagerServer`). The seeding itself happens in
+    /// `ContentView.seedFromLaunchArgumentsIfNeeded`. This skips the
+    /// form-typing flow when a test only cares about display behavior.
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Alertmanager.self,
@@ -111,7 +113,7 @@ struct AlertmanagerApp: App {
 
         // Menu bar popup. `isInserted` lets the user hide the icon entirely
         // from Settings without quitting the app. The `.window` style gives
-        // a 500x400 panel rather than a classic menu list.
+        // a 500x600 panel rather than a classic menu list.
         MenuBarExtra("Alertmanager", systemImage: "bell.fill", isInserted: $menuBarEnabled) {
             MenuBarContentView()
         }

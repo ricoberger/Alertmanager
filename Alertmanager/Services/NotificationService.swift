@@ -11,7 +11,11 @@ import UserNotifications
 
 /// `userInfo` keys used to ferry deep-link URLs through the notification
 /// payload to the action handler in `NotificationService`.
-enum NotificationUserInfoKey {
+///
+/// `nonisolated` so the constants are also usable from the nonisolated
+/// `UNUserNotificationCenterDelegate` methods (the project-wide `MainActor`
+/// default would otherwise isolate them).
+nonisolated enum NotificationUserInfoKey {
     static let sourceURL = "sourceURL"
     static let silenceURL = "silenceURL"
     static let runbookURL = "runbookURL"
@@ -24,7 +28,9 @@ enum NotificationUserInfoKey {
 }
 
 /// `UNNotificationAction` identifiers used by `NotificationService`.
-enum NotificationActionIdentifier {
+///
+/// `nonisolated` for the same reason as `NotificationUserInfoKey`.
+nonisolated enum NotificationActionIdentifier {
     static let openSource = "OPEN_SOURCE"
     static let openSilence = "OPEN_SILENCE"
     static let openRunbook = "OPEN_RUNBOOK"
@@ -167,26 +173,32 @@ class NotificationService: NSObject {
             (
                 0,
                 UNNotificationAction(
-                    identifier: "OPEN_SOURCE", title: "Source", options: .foreground)
+                    identifier: NotificationActionIdentifier.openSource, title: "Source",
+                    options: .foreground)
             ),
             (
                 1,
                 UNNotificationAction(
-                    identifier: "OPEN_SILENCE", title: "Silence", options: .foreground)
+                    identifier: NotificationActionIdentifier.openSilence, title: "Silence",
+                    options: .foreground)
             ),
             (
                 2,
                 UNNotificationAction(
-                    identifier: "OPEN_RUNBOOK", title: "Runbook", options: .foreground)
+                    identifier: NotificationActionIdentifier.openRunbook, title: "Runbook",
+                    options: .foreground)
             ),
             (
                 3,
                 UNNotificationAction(
-                    identifier: "OPEN_DASHBOARD", title: "Dashboard", options: .foreground)
+                    identifier: NotificationActionIdentifier.openDashboard, title: "Dashboard",
+                    options: .foreground)
             ),
             (
                 4,
-                UNNotificationAction(identifier: "OPEN_PANEL", title: "Panel", options: .foreground)
+                UNNotificationAction(
+                    identifier: NotificationActionIdentifier.openPanel, title: "Panel",
+                    options: .foreground)
             ),
         ]
 
@@ -359,37 +371,25 @@ class NotificationService: NSObject {
 
             // Source — present only when the alert carries a generatorURL.
             if let generatorURL = alert.generatorURL,
-                let sanitized = sanitizeURL(generatorURL)
+                let sanitized = AlertDeepLinks.sanitize(generatorURL)
             {
                 userInfo[NotificationUserInfoKey.sourceURL] = sanitized
             }
 
-            // Silence — always constructible when the alertmanager is known.
-            // For Grafana backends, resolve the datasource name from its UID
-            // first (unless the UID is already the built-in "grafana" value).
-            if let alertmanager {
-                let configuredUID =
-                    alertmanager.grafanaAlertmanager.isEmpty
-                    ? nil : alertmanager.grafanaAlertmanager
-                let resolvedName: String?
-                if alertmanager.isGrafana, let uid = configuredUID, uid != "grafana" {
-                    resolvedName = await service.fetchDatasourceName(for: uid, in: alertmanager)
-                } else {
-                    resolvedName = nil
-                }
-
-                if let silenceURL = buildSilenceURL(
-                    for: alert,
-                    alertmanager: alertmanager,
-                    resolvedDatasourceName: resolvedName
-                ) {
-                    userInfo[NotificationUserInfoKey.silenceURL] = silenceURL
-                }
+            // Silence — constructible when the alertmanager is known (and,
+            // for Grafana backends, a datasource is configured). URL
+            // construction, including the Grafana datasource-name lookup,
+            // is shared with AlertRowView's Silence button via
+            // `AlertmanagerService.resolveSilenceURL`.
+            if let alertmanager,
+                let silenceURL = await service.resolveSilenceURL(for: alert, in: alertmanager)
+            {
+                userInfo[NotificationUserInfoKey.silenceURL] = silenceURL
             }
 
             // Runbook — present only when the annotation exists.
             if let runbookURL = alert.runbookURL,
-                let sanitized = sanitizeURL(runbookURL)
+                let sanitized = AlertDeepLinks.sanitize(runbookURL)
             {
                 userInfo[NotificationUserInfoKey.runbookURL] = sanitized
             }
@@ -398,12 +398,12 @@ class NotificationService: NSObject {
             if let alertmanager, alertmanager.isGrafana,
                 let dashboardUID = alert.annotations["__dashboardUid__"]
             {
-                let dashboardURL = "\(alertmanager.url)/d/\(dashboardUID)"
-                userInfo[NotificationUserInfoKey.dashboardURL] = dashboardURL
+                userInfo[NotificationUserInfoKey.dashboardURL] = AlertDeepLinks.dashboardURL(
+                    alertmanager: alertmanager, dashboardUID: dashboardUID)
 
                 if let panelId = alert.annotations["__panelId__"] {
-                    let panelURL = "\(alertmanager.url)/d/\(dashboardUID)?viewPanel=\(panelId)"
-                    userInfo[NotificationUserInfoKey.panelURL] = panelURL
+                    userInfo[NotificationUserInfoKey.panelURL] = AlertDeepLinks.panelURL(
+                        alertmanager: alertmanager, dashboardUID: dashboardUID, panelId: panelId)
                 }
             }
 
@@ -429,7 +429,7 @@ class NotificationService: NSObject {
         print("Sent \(alerts.count) notification(s) for filter '\(filter.name)'")
     }
 
-    // MARK: - URL helpers
+    // MARK: - Alertmanager resolution
 
     /// Finds the alertmanager that produced `alert`.
     ///
@@ -446,25 +446,6 @@ class NotificationService: NSObject {
             }
         }
         return nil
-    }
-
-    /// Builds the silence URL for `alert` against `alertmanager`.
-    /// Delegates to `AlertDeepLinks.silenceURL(for:alertmanager:resolvedDatasourceName:)`.
-    private func buildSilenceURL(
-        for alert: GettableAlert,
-        alertmanager: Alertmanager,
-        resolvedDatasourceName: String? = nil
-    ) -> String? {
-        AlertDeepLinks.silenceURL(
-            for: alert,
-            alertmanager: alertmanager,
-            resolvedDatasourceName: resolvedDatasourceName
-        )
-    }
-
-    /// Sanitizes a URL string via `AlertDeepLinks.sanitize(_:)`.
-    private func sanitizeURL(_ urlString: String) -> String? {
-        AlertDeepLinks.sanitize(urlString)
     }
 }
 
@@ -484,16 +465,13 @@ extension NotificationService: UNUserNotificationCenterDelegate {
 
         let userInfo = response.notification.request.content.userInfo
 
-        // Use raw string literals here — the enums are MainActor-isolated
-        // (project-wide default) and cannot be referenced from this
-        // nonisolated delegate method.
-
         // Default tap (user tapped the notification body, not an action
         // button): open the alert-detail window.
         if response.actionIdentifier == UNNotificationDefaultActionIdentifier {
             guard
-                let fingerprint = userInfo["fingerprint"] as? String,
-                let alertmanagerIDString = userInfo["alertmanagerID"] as? String,
+                let fingerprint = userInfo[NotificationUserInfoKey.fingerprint] as? String,
+                let alertmanagerIDString = userInfo[NotificationUserInfoKey.alertmanagerID]
+                    as? String,
                 let alertmanagerID = UUID(uuidString: alertmanagerIDString)
             else { return }
 
@@ -530,16 +508,16 @@ extension NotificationService: UNUserNotificationCenterDelegate {
 
         let urlKey: String
         switch response.actionIdentifier {
-        case "OPEN_SOURCE":
-            urlKey = "sourceURL"
-        case "OPEN_SILENCE":
-            urlKey = "silenceURL"
-        case "OPEN_RUNBOOK":
-            urlKey = "runbookURL"
-        case "OPEN_DASHBOARD":
-            urlKey = "dashboardURL"
-        case "OPEN_PANEL":
-            urlKey = "panelURL"
+        case NotificationActionIdentifier.openSource:
+            urlKey = NotificationUserInfoKey.sourceURL
+        case NotificationActionIdentifier.openSilence:
+            urlKey = NotificationUserInfoKey.silenceURL
+        case NotificationActionIdentifier.openRunbook:
+            urlKey = NotificationUserInfoKey.runbookURL
+        case NotificationActionIdentifier.openDashboard:
+            urlKey = NotificationUserInfoKey.dashboardURL
+        case NotificationActionIdentifier.openPanel:
+            urlKey = NotificationUserInfoKey.panelURL
         default:
             return
         }

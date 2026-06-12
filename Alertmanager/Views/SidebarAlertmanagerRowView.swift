@@ -59,14 +59,7 @@ struct SidebarAlertmanagerRowView: View {
             } else {
                 // Capsule badge with the current alert count. Red signals
                 // there are active alerts, green signals all-clear.
-                Text("\(alertCount)")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(alertCount > 0 ? Color.red : Color.green)
-                    .clipShape(Capsule())
+                CountBadge(count: alertCount)
             }
         }
         .onAppear {

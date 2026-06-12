@@ -13,10 +13,6 @@ extension Notification.Name {
     /// affected alertmanager so observers can scope their reactions.
     static let alertsDidUpdate = Notification.Name("alertsDidUpdate")
 
-    /// Posted when a filter's predicates change in a way that downstream
-    /// views need to re-evaluate. (Currently unused; kept for parity.)
-    static let filterDidUpdate = Notification.Name("filterDidUpdate")
-
     /// Posted by the "Export Configuration" menu command in
     /// `AlertmanagerApp`; observed by `ContentView`.
     static let exportConfiguration = Notification.Name("exportConfiguration")

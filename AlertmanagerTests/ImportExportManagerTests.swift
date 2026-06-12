@@ -26,6 +26,43 @@ private func makeAlertmanager(
     Alertmanager(name: name, url: url, authType: authType)
 }
 
+/// Snapshot of every `SettingsManager` preference.
+///
+/// `ImportExportManager.importData` writes imported settings straight into
+/// `SettingsManager.shared` — i.e. the real `UserDefaults` of the test host
+/// — and `exportData` embeds the current settings into every export. Tests
+/// that exercise import must therefore capture the settings up front and
+/// restore them on exit, or they clobber the developer's actual
+/// configuration (refresh interval, menu-bar filter selection, …).
+///
+/// Usage: `let snapshot = SettingsSnapshot(); defer { snapshot.restore() }`.
+@MainActor
+private struct SettingsSnapshot {
+    private let refreshInterval: TimeInterval
+    private let menuBarEnabled: Bool
+    private let menuBarFilterID: String?
+    private let labelBadgeConfigs: [LabelBadgeConfig]
+    private let showAlertmanagerName: Bool
+
+    init() {
+        let settings = SettingsManager.shared
+        refreshInterval = settings.refreshInterval
+        menuBarEnabled = settings.menuBarEnabled
+        menuBarFilterID = settings.menuBarFilterID
+        labelBadgeConfigs = settings.labelBadgeConfigs
+        showAlertmanagerName = settings.showAlertmanagerName
+    }
+
+    func restore() {
+        let settings = SettingsManager.shared
+        settings.refreshInterval = refreshInterval
+        settings.menuBarEnabled = menuBarEnabled
+        settings.menuBarFilterID = menuBarFilterID
+        settings.labelBadgeConfigs = labelBadgeConfigs
+        settings.showAlertmanagerName = showAlertmanagerName
+    }
+}
+
 // MARK: - ExportAuthType decode
 
 @Suite("ExportAuthType decode")
@@ -82,6 +119,9 @@ struct ImportExportRoundTripTests {
     @Test("Round-trip: export then import produces same alertmanager count")
     @MainActor
     func roundTripAlertmanagerCount() throws {
+        let snapshot = SettingsSnapshot()
+        defer { snapshot.restore() }
+
         let container = try makeInMemoryContainer()
         let context = ModelContext(container)
 
@@ -112,6 +152,9 @@ struct ImportExportRoundTripTests {
     @Test("Round-trip: filter references alertmanager by name")
     @MainActor
     func filterReferenceByName() throws {
+        let snapshot = SettingsSnapshot()
+        defer { snapshot.restore() }
+
         let container = try makeInMemoryContainer()
         let context = ModelContext(container)
 
@@ -153,6 +196,9 @@ struct ImportExportRoundTripTests {
     @Test("Importing the same file twice does not duplicate alertmanagers")
     @MainActor
     func noDuplicatesOnSecondImport() throws {
+        let snapshot = SettingsSnapshot()
+        defer { snapshot.restore() }
+
         let container = try makeInMemoryContainer()
         let context = ModelContext(container)
 
@@ -192,6 +238,9 @@ struct ImportExportRoundTripTests {
     @Test("Importing the same file twice does not duplicate filters")
     @MainActor
     func noFilterDuplicatesOnSecondImport() throws {
+        let snapshot = SettingsSnapshot()
+        defer { snapshot.restore() }
+
         let container = try makeInMemoryContainer()
         let context = ModelContext(container)
 
@@ -383,6 +432,9 @@ struct ImportExportRoundTripTests {
     @Test("AuthType round-trip: basicAuth preserved through export→import")
     @MainActor
     func authTypeBasicAuthRoundTrip() throws {
+        let snapshot = SettingsSnapshot()
+        defer { snapshot.restore() }
+
         let container = try makeInMemoryContainer()
         let context = ModelContext(container)
 
@@ -413,6 +465,9 @@ struct ImportExportRoundTripTests {
     @Test("settingsRestored is true when settings block is present")
     @MainActor
     func settingsRestoredFlag() throws {
+        let snapshot = SettingsSnapshot()
+        defer { snapshot.restore() }
+
         let exportJSON = """
         {
             "alertmanagers": [],

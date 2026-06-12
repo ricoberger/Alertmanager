@@ -25,8 +25,10 @@ struct FilterDetailView: View {
     /// Presents the destructive delete confirmation alert.
     @State private var showingDeleteAlert = false
 
-    /// Filtered, deduplicated, sorted alerts displayed in the list.
-    @State private var alerts: [GettableAlert] = []
+    /// Filtered, deduplicated, sorted alerts displayed in the list, each
+    /// paired with the alertmanager that won dedup (needed by
+    /// `AlertRowView` for deep-link construction).
+    @State private var alerts: [(alert: GettableAlert, alertmanager: Alertmanager)] = []
 
     /// `true` while at least one source alertmanager is performing an
     /// initial fetch.
@@ -64,28 +66,21 @@ struct FilterDetailView: View {
                 // Healthy empty state: nothing currently matches the filter.
                 VStack {
                     Spacer()
-                    VStack(spacing: 16) {
-                        Image(systemName: "checkmark.circle")
-                            .font(.system(size: 48))
-                            .foregroundColor(.green)
-                        Text("No Alerts")
-                            .font(.headline)
-                        Text("No alerts found for filter criteria")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
+                    ContentPlaceholderView(
+                        systemImage: "checkmark.circle",
+                        iconColor: .green,
+                        title: "No Alerts",
+                        message: "No alerts found for filter criteria"
+                    )
                     Spacer()
                 }
             } else {
-                // Populated state. Each row needs its originating
-                // alertmanager for deep-link construction; rows whose
-                // source can no longer be resolved are skipped.
+                // Populated state. Each row carries its dedup-winning
+                // alertmanager for deep-link construction.
                 ScrollView {
                     LazyVStack(spacing: 12) {
-                        ForEach(filteredAlerts) { alert in
-                            if let alertmanager = findAlertmanager(for: alert) {
-                                AlertRowView(alert: alert, alertmanager: alertmanager)
-                            }
+                        ForEach(filteredAlerts, id: \.alert.id) { item in
+                            AlertRowView(alert: item.alert, alertmanager: item.alertmanager)
                         }
                     }
                     .padding()
@@ -95,12 +90,7 @@ struct FilterDetailView: View {
         .navigationTitle(filter.name)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                TextField("Search", text: $searchQuery)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(minWidth: 200, maxWidth: 400)
-                    .onSubmit {
-                        searchMatchers = LabelMatcher.parse(query: searchQuery)
-                    }
+                AlertSearchField(query: $searchQuery, matchers: $searchMatchers)
             }
 
             ToolbarItem(placement: .automatic) {
@@ -176,52 +166,33 @@ struct FilterDetailView: View {
     ///
     /// When `searchMatchers` is empty (no or unparseable query) the
     /// filter-matched `alerts` list is returned unchanged.
-    private var filteredAlerts: [GettableAlert] {
+    private var filteredAlerts: [(alert: GettableAlert, alertmanager: Alertmanager)] {
         guard !searchMatchers.isEmpty else { return alerts }
-        return alerts.filter { alert in
-            searchMatchers.allSatisfy { $0.evaluate(against: alert.labels) }
+        return alerts.filter { item in
+            searchMatchers.allSatisfy { $0.evaluate(against: item.alert.labels) }
         }
     }
 
     /// Recomputes `alerts` and `isLoading` from `AlertsManager`'s caches.
     ///
-    /// Walks every alertmanager referenced by the filter **in sidebar order**,
-    /// collects each backend's alerts, deduplicates by `fingerprint` (the same
-    /// alert can be produced by multiple alertmanagers), applies the filter's
-    /// predicates, and sorts newest-first. Iterating in sidebar order rather
-    /// than `filter.selectedAlertmanagerIDs` order — which reflects the
-    /// (effectively random) order checkboxes were ticked in the form — makes
-    /// dedup precedence match what the user sees in the sidebar, and matches
-    /// `AlertAggregator`'s contract.
+    /// Aggregation (sidebar-order visitation, dedup by fingerprint, filter
+    /// predicates, alert-to-alertmanager pairing, newest-first sort) is
+    /// delegated to `AlertAggregator.alertsWithSources`, the same helper
+    /// the menu bar popup uses — so both surfaces always agree.
     ///
     /// Notification checking is handled centrally by `NotificationService`,
     /// which subscribes to `.alertsDidUpdate` and checks all filters
     /// independently of which view is visible.
     private func updateAlerts() {
-        var allAlerts: [GettableAlert] = []
-        var seenFingerprints: Set<String> = []
-        var anyLoading = false
-
-        for alertmanager in alertmanagers
-        where filter.includesAlertmanager(withID: alertmanager.id) {
-            let alerts = AlertsManager.shared.alertsByAlertmanager[alertmanager.id] ?? []
-
-            for alert in alerts {
-                if !seenFingerprints.contains(alert.fingerprint) {
-                    seenFingerprints.insert(alert.fingerprint)
-                    allAlerts.append(alert)
-                }
-            }
-
-            if AlertsManager.shared.isLoadingByAlertmanager[alertmanager.id] ?? false {
-                anyLoading = true
-            }
+        alerts = AlertAggregator.alertsWithSources(
+            for: filter,
+            from: AlertsManager.shared.alertsByAlertmanager,
+            orderedAlertmanagers: alertmanagers
+        )
+        isLoading = alertmanagers.contains {
+            filter.includesAlertmanager(withID: $0.id)
+                && (AlertsManager.shared.isLoadingByAlertmanager[$0.id] ?? false)
         }
-
-        let filteredAlerts = filter.apply(to: allAlerts).sorted { $0.startsAt > $1.startsAt }
-
-        alerts = filteredAlerts
-        isLoading = anyLoading
     }
 
     /// Forces an out-of-band refresh on every alertmanager referenced by
@@ -232,27 +203,6 @@ struct FilterDetailView: View {
         where filter.includesAlertmanager(withID: alertmanager.id) {
             AlertsManager.shared.refresh(alertmanager: alertmanager)
         }
-    }
-
-    /// Resolves which alertmanager produced `alert` so `AlertRowView` can
-    /// construct correct silence/dashboard URLs.
-    ///
-    /// Searches each source alertmanager's cache for a matching alert id **in
-    /// sidebar order**, so when the same fingerprint is present in multiple
-    /// alertmanagers the row consistently pairs with the one that wins dedup
-    /// in `updateAlerts()`. Falls back to the first known alertmanager if
-    /// nothing matches (which can happen briefly when caches are still being
-    /// populated).
-    private func findAlertmanager(for alert: GettableAlert) -> Alertmanager? {
-        for alertmanager in alertmanagers
-        where filter.includesAlertmanager(withID: alertmanager.id) {
-            let alertmanagerAlerts =
-                AlertsManager.shared.alertsByAlertmanager[alertmanager.id] ?? []
-            if alertmanagerAlerts.contains(where: { $0.id == alert.id }) {
-                return alertmanager
-            }
-        }
-        return alertmanagers.first
     }
 
     /// Removes the filter from the model context. Polling is unaffected

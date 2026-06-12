@@ -33,7 +33,8 @@ struct FilterFormView: View {
     @State private var name: String = ""
     /// IDs of source alertmanagers to query.
     @State private var selectedAlertmanagers: Set<UUID> = []
-    /// Alert states to include (empty = none).
+    /// Alert states to include (empty disables the state predicate, i.e.
+    /// alerts in any state match).
     @State private var selectedStates: Set<AlertState> = []
     /// Receiver-name allowlist.
     @State private var selectedReceivers: Set<String> = []

@@ -440,9 +440,9 @@ struct ContentView: View {
     /// No-op outside of that variable being present.
     ///
     /// Mirrors `AlertmanagerFormView.saveAlertmanager`'s create path:
-    /// explicit `fetch` via the env `modelContext` for idempotency,
-    /// explicit `sortOrder`, autosave only — the same shape the form-
-    /// driven CRUD tests exercise successfully.
+    /// explicit `fetch` via the env `modelContext` for idempotency and an
+    /// explicit `sortOrder`. Persistence relies on autosave — the seeded
+    /// row only needs to be visible to this context's `@Query`.
     private func seedFromLaunchArgumentsIfNeeded() {
         guard let url = uiTestEnvironmentValue(for: "UI_TEST_SEED_ALERTMANAGER_URL") else {
             return

@@ -13,19 +13,24 @@ import Testing
 private func makeAlert(
     fingerprint: String,
     state: AlertState = .active,
-    labels: [String: String] = [:]
+    labels: [String: String] = [:],
+    startsAt: Date = Date()
 ) -> GettableAlert {
     GettableAlert(
         annotations: [:],
         receivers: [],
         fingerprint: fingerprint,
-        startsAt: Date(),
+        startsAt: startsAt,
         updatedAt: Date(),
         endsAt: Date(),
         status: AlertStatus(state: state, silencedBy: [], inhibitedBy: []),
         labels: labels,
         generatorURL: nil
     )
+}
+
+private func makeAlertmanager(name: String) -> Alertmanager {
+    Alertmanager(name: name, url: "https://\(name).example.com")
 }
 
 // MARK: - AlertAggregator tests
@@ -205,6 +210,99 @@ struct AlertAggregatorTests {
             orderedAlertmanagerIDs: [id]
         )
         #expect(result.isEmpty)
+    }
+}
+
+// MARK: - AlertAggregator.alertsWithSources tests
+
+@Suite("AlertAggregator.alertsWithSources")
+struct AlertAggregatorAlertsWithSourcesTests {
+
+    @Test("Pairs each alert with the alertmanager that won dedup")
+    func pairsWithDedupWinner() {
+        let am1 = makeAlertmanager(name: "am1")
+        let am2 = makeAlertmanager(name: "am2")
+        let filter = Filter(name: "f", selectedAlertmanagerIDs: [am1.id, am2.id], states: [])
+        let cache: [UUID: [GettableAlert]] = [
+            am1.id: [makeAlert(fingerprint: "shared")],
+            am2.id: [makeAlert(fingerprint: "shared"), makeAlert(fingerprint: "only2")],
+        ]
+
+        let result = AlertAggregator.alertsWithSources(
+            for: filter,
+            from: cache,
+            orderedAlertmanagers: [am1, am2]
+        )
+        #expect(result.count == 2)
+        // am1 is first in sidebar order, so its copy of "shared" wins.
+        #expect(result.first(where: { $0.alert.fingerprint == "shared" })?.alertmanager.id == am1.id)
+        #expect(result.first(where: { $0.alert.fingerprint == "only2" })?.alertmanager.id == am2.id)
+    }
+
+    @Test("Applies the filter after deduplication, matching alerts(for:)")
+    func filterAppliedAfterDedup() {
+        // The same fingerprint is suppressed in the dedup winner (am1) but
+        // active in am2. Dedup-before-filter keeps the am1 copy and the
+        // state predicate then drops it — identical to what
+        // alerts(for:from:orderedAlertmanagerIDs:) produces.
+        let am1 = makeAlertmanager(name: "am1")
+        let am2 = makeAlertmanager(name: "am2")
+        let filter = Filter(name: "f", selectedAlertmanagerIDs: [am1.id, am2.id], states: [.active])
+        let cache: [UUID: [GettableAlert]] = [
+            am1.id: [makeAlert(fingerprint: "shared", state: .suppressed)],
+            am2.id: [makeAlert(fingerprint: "shared", state: .active)],
+        ]
+
+        let result = AlertAggregator.alertsWithSources(
+            for: filter,
+            from: cache,
+            orderedAlertmanagers: [am1, am2]
+        )
+        #expect(result.isEmpty)
+
+        let plain = AlertAggregator.alerts(
+            for: filter,
+            from: cache,
+            orderedAlertmanagerIDs: [am1.id, am2.id]
+        )
+        #expect(plain.isEmpty)
+    }
+
+    @Test("Sorts results newest-first")
+    func sortsNewestFirst() {
+        let am = makeAlertmanager(name: "am1")
+        let filter = Filter(name: "f", selectedAlertmanagerIDs: [am.id], states: [])
+        let cache: [UUID: [GettableAlert]] = [
+            am.id: [
+                makeAlert(fingerprint: "old", startsAt: Date(timeIntervalSince1970: 1_000)),
+                makeAlert(fingerprint: "new", startsAt: Date(timeIntervalSince1970: 2_000)),
+            ]
+        ]
+
+        let result = AlertAggregator.alertsWithSources(
+            for: filter,
+            from: cache,
+            orderedAlertmanagers: [am]
+        )
+        #expect(result.map(\.alert.fingerprint) == ["new", "old"])
+    }
+
+    @Test("Empty selection means all alertmanagers")
+    func emptySelectionMeansAllAlertmanagers() {
+        let am1 = makeAlertmanager(name: "am1")
+        let am2 = makeAlertmanager(name: "am2")
+        let filter = Filter(name: "f", selectedAlertmanagerIDs: [], states: [])
+        let cache: [UUID: [GettableAlert]] = [
+            am1.id: [makeAlert(fingerprint: "a1")],
+            am2.id: [makeAlert(fingerprint: "b1")],
+        ]
+
+        let result = AlertAggregator.alertsWithSources(
+            for: filter,
+            from: cache,
+            orderedAlertmanagers: [am1, am2]
+        )
+        #expect(Set(result.map(\.alert.fingerprint)) == ["a1", "b1"])
     }
 }
 

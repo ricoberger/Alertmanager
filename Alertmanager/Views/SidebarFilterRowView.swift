@@ -24,11 +24,6 @@ struct SidebarFilterRowView: View {
     /// Cached count of matching alerts shown in the badge.
     @State private var alertCount: Int = 0
 
-    /// `true` while a fetch is in flight; drives the spinner.
-    /// (Currently never set — left in place for parity with the
-    /// alertmanager row's badge UI.)
-    @State private var isLoading: Bool = false
-
     var body: some View {
         HStack {
             Text(filter.name)
@@ -37,21 +32,9 @@ struct SidebarFilterRowView: View {
 
             Spacer()
 
-            if isLoading {
-                ProgressView()
-                    .scaleEffect(0.6)
-            } else {
-                // Capsule badge with the matching-alert count. Red signals
-                // there are matches, green signals no matches.
-                Text("\(alertCount)")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(alertCount > 0 ? Color.red : Color.green)
-                    .clipShape(Capsule())
-            }
+            // Capsule badge with the matching-alert count. Red signals
+            // there are matches, green signals no matches.
+            CountBadge(count: alertCount)
         }
         .onAppear {
             updateAlertCount()
