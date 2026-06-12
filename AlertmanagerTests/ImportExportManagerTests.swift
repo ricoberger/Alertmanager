@@ -99,7 +99,8 @@ struct ImportExportRoundTripTests {
         let result = try ImportExportManager.importData(
             from: data,
             modelContext: freshContext,
-            existingAlertmanagers: []
+            existingAlertmanagers: [],
+            existingFilters: []
         )
 
         #expect(result.alertmanagers == 2)
@@ -134,7 +135,8 @@ struct ImportExportRoundTripTests {
         let result = try ImportExportManager.importData(
             from: data,
             modelContext: freshContext,
-            existingAlertmanagers: []
+            existingAlertmanagers: [],
+            existingFilters: []
         )
 
         #expect(result.filters == 1)
@@ -167,7 +169,8 @@ struct ImportExportRoundTripTests {
         let r1 = try ImportExportManager.importData(
             from: data,
             modelContext: freshContext,
-            existingAlertmanagers: []
+            existingAlertmanagers: [],
+            existingFilters: []
         )
         #expect(r1.alertmanagers == 1)
 
@@ -177,11 +180,59 @@ struct ImportExportRoundTripTests {
         let r2 = try ImportExportManager.importData(
             from: data,
             modelContext: freshContext,
-            existingAlertmanagers: afterFirst
+            existingAlertmanagers: afterFirst,
+            existingFilters: []
         )
         #expect(r2.alertmanagers == 0)
 
         let afterSecond = try freshContext.fetch(FetchDescriptor<Alertmanager>())
+        #expect(afterSecond.count == 1)
+    }
+
+    @Test("Importing the same file twice does not duplicate filters")
+    @MainActor
+    func noFilterDuplicatesOnSecondImport() throws {
+        let container = try makeInMemoryContainer()
+        let context = ModelContext(container)
+
+        let am = makeAlertmanager(name: "Prod", url: "https://prod.example.com")
+        context.insert(am)
+        let filter = Filter(
+            name: "Critical",
+            selectedAlertmanagerIDs: [am.id],
+            states: [.active]
+        )
+        context.insert(filter)
+        try context.save()
+
+        let data = try #require(
+            ImportExportManager.exportData(alertmanagers: [am], filters: [filter]))
+
+        let freshContainer = try makeInMemoryContainer()
+        let freshContext = ModelContext(freshContainer)
+
+        // First import into an empty store inserts the filter.
+        let r1 = try ImportExportManager.importData(
+            from: data,
+            modelContext: freshContext,
+            existingAlertmanagers: [],
+            existingFilters: []
+        )
+        #expect(r1.filters == 1)
+
+        let afterFirstAMs = try freshContext.fetch(FetchDescriptor<Alertmanager>())
+        let afterFirstFilters = try freshContext.fetch(FetchDescriptor<Filter>())
+
+        // Second import — the same-named filter must be skipped.
+        let r2 = try ImportExportManager.importData(
+            from: data,
+            modelContext: freshContext,
+            existingAlertmanagers: afterFirstAMs,
+            existingFilters: afterFirstFilters
+        )
+        #expect(r2.filters == 0)
+
+        let afterSecond = try freshContext.fetch(FetchDescriptor<Filter>())
         #expect(afterSecond.count == 1)
     }
 
@@ -212,7 +263,8 @@ struct ImportExportRoundTripTests {
         let result = try ImportExportManager.importData(
             from: exportJSON,
             modelContext: freshContext,
-            existingAlertmanagers: []
+            existingAlertmanagers: [],
+            existingFilters: []
         )
         #expect(result.filters == 1)
 
@@ -246,7 +298,8 @@ struct ImportExportRoundTripTests {
         try ImportExportManager.importData(
             from: exportJSON,
             modelContext: freshContext,
-            existingAlertmanagers: []
+            existingAlertmanagers: [],
+            existingFilters: []
         )
 
         let imported = try freshContext.fetch(FetchDescriptor<Filter>())
@@ -283,7 +336,8 @@ struct ImportExportRoundTripTests {
         try ImportExportManager.importData(
             from: exportJSON,
             modelContext: freshContext,
-            existingAlertmanagers: []
+            existingAlertmanagers: [],
+            existingFilters: []
         )
 
         let imported = try freshContext.fetch(FetchDescriptor<Filter>())
@@ -314,7 +368,8 @@ struct ImportExportRoundTripTests {
         try ImportExportManager.importData(
             from: exportJSON,
             modelContext: freshContext,
-            existingAlertmanagers: []
+            existingAlertmanagers: [],
+            existingFilters: []
         )
 
         let ams = try freshContext.fetch(FetchDescriptor<Alertmanager>())
@@ -347,7 +402,8 @@ struct ImportExportRoundTripTests {
         try ImportExportManager.importData(
             from: data,
             modelContext: freshContext,
-            existingAlertmanagers: []
+            existingAlertmanagers: [],
+            existingFilters: []
         )
 
         let imported = try freshContext.fetch(FetchDescriptor<Alertmanager>())
@@ -376,7 +432,8 @@ struct ImportExportRoundTripTests {
         let result = try ImportExportManager.importData(
             from: exportJSON,
             modelContext: freshContext,
-            existingAlertmanagers: []
+            existingAlertmanagers: [],
+            existingFilters: []
         )
         #expect(result.settingsRestored == true)
     }
@@ -399,7 +456,8 @@ struct ImportExportRoundTripTests {
         let result = try ImportExportManager.importData(
             from: exportJSON,
             modelContext: freshContext,
-            existingAlertmanagers: []
+            existingAlertmanagers: [],
+            existingFilters: []
         )
         #expect(result.settingsRestored == false)
     }

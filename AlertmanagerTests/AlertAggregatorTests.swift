@@ -157,6 +157,29 @@ struct AlertAggregatorTests {
         #expect(result[0].fingerprint == "active")
     }
 
+    @Test("Empty selection means all alertmanagers")
+    func emptySelectionMeansAllAlertmanagers() {
+        let id1 = UUID()
+        let id2 = UUID()
+        let filter = Filter(
+            name: "f",
+            selectedAlertmanagerIDs: [],
+            states: []
+        )
+        let cache: [UUID: [GettableAlert]] = [
+            id1: [makeAlert(fingerprint: "a1")],
+            id2: [makeAlert(fingerprint: "b1")],
+        ]
+
+        let result = AlertAggregator.alerts(
+            for: filter,
+            from: cache,
+            orderedAlertmanagerIDs: [id1, id2]
+        )
+        let fps = Set(result.map(\.fingerprint))
+        #expect(fps == ["a1", "b1"])
+    }
+
     @Test("Returns empty array when filter references an unknown alertmanager ID")
     func unknownAlertmanagerIDReturnsEmpty() {
         let filter = Filter(
@@ -182,5 +205,25 @@ struct AlertAggregatorTests {
             orderedAlertmanagerIDs: [id]
         )
         #expect(result.isEmpty)
+    }
+}
+
+// MARK: - Filter.includesAlertmanager tests
+
+@Suite("Filter.includesAlertmanager")
+struct FilterIncludesAlertmanagerTests {
+
+    @Test("Empty selection includes every alertmanager")
+    func emptySelectionIncludesAll() {
+        let filter = Filter(name: "f", selectedAlertmanagerIDs: [])
+        #expect(filter.includesAlertmanager(withID: UUID()))
+    }
+
+    @Test("Non-empty selection includes only listed alertmanagers")
+    func nonEmptySelectionIsMembershipTest() {
+        let selected = UUID()
+        let filter = Filter(name: "f", selectedAlertmanagerIDs: [selected])
+        #expect(filter.includesAlertmanager(withID: selected))
+        #expect(!filter.includesAlertmanager(withID: UUID()))
     }
 }

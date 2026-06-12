@@ -400,7 +400,8 @@ struct ContentView: View {
             let result = try ImportExportManager.importData(
                 from: data,
                 modelContext: modelContext,
-                existingAlertmanagers: alertmanagers
+                existingAlertmanagers: alertmanagers,
+                existingFilters: filters
             )
 
             var message =
