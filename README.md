@@ -36,15 +36,15 @@ and [Grafana Alerting](https://grafana.com/docs/grafana/latest/alerting/).
 
 ```bash
 # Build (Debug, macOS)
-xcodebuild -project Alertmanager.xcodeproj -scheme Alertmanager -configuration Debug build
+xcodebuild build -project Alertmanager.xcodeproj -scheme Alertmanager -configuration Debug
 
 # Build (Release)
-xcodebuild -project Alertmanager.xcodeproj -scheme Alertmanager -configuration Release archive -archivePath build/Alertmanager.xcarchive
+xcodebuild archive -project Alertmanager.xcodeproj -scheme Alertmanager -configuration Release -archivePath build/Alertmanager.xcarchive
 ```
 
 ```bash
 # Run all tests
-xcodebuild -project Alertmanager.xcodeproj -scheme Alertmanager test
+xcodebuild test -project Alertmanager.xcodeproj -scheme Alertmanager
 
 # Unit tests only (Swift Testing)
 xcodebuild test -project Alertmanager.xcodeproj -scheme Alertmanager -only-testing:AlertmanagerTests
@@ -61,7 +61,8 @@ To make the SourceKit-LSP working properly with the Xcode project, a
 (installable via Homebrew: `brew install xcode-build-server`).
 
 ```bash
-rm .bundle; xcodebuild -project Alertmanager.xcodeproj -scheme Alertmanager -configuration Debug -resultBundlePath .bundle build
+rm -rf .bundle
+xcodebuild build -project Alertmanager.xcodeproj -scheme Alertmanager -configuration Debug -resultBundlePath .bundle
 xcode-build-server config -project Alertmanager.xcodeproj -scheme Alertmanager
 ```
 
