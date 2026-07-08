@@ -67,6 +67,9 @@ struct AlertmanagerApp: App {
             ContentView()
                 .onAppear {
                     NotificationService.shared.configure(with: sharedModelContainer)
+                    // Create the analyses output directory and start watching
+                    // it so alert rows can reflect existing/new analysis files.
+                    AnalysisManager.shared.start()
                     // One-shot version probe against the GitHub releases
                     // API. Subsequent `.onAppear` calls within the same
                     // session are no-ops — the banner is a launch hint.

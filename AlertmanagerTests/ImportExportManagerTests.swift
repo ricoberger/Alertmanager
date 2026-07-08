@@ -43,6 +43,7 @@ private struct SettingsSnapshot {
     private let menuBarFilterID: String?
     private let labelBadgeConfigs: [LabelBadgeConfig]
     private let showAlertmanagerName: Bool
+    private let analyzeCommand: String
 
     init() {
         let settings = SettingsManager.shared
@@ -51,6 +52,7 @@ private struct SettingsSnapshot {
         menuBarFilterID = settings.menuBarFilterID
         labelBadgeConfigs = settings.labelBadgeConfigs
         showAlertmanagerName = settings.showAlertmanagerName
+        analyzeCommand = settings.analyzeCommand
     }
 
     func restore() {
@@ -60,6 +62,7 @@ private struct SettingsSnapshot {
         settings.menuBarFilterID = menuBarFilterID
         settings.labelBadgeConfigs = labelBadgeConfigs
         settings.showAlertmanagerName = showAlertmanagerName
+        settings.analyzeCommand = analyzeCommand
     }
 }
 

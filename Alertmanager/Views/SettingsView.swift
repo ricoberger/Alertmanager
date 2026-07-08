@@ -14,6 +14,8 @@ import SwiftUI
 ///   drives its content.
 /// - **Label Badges**: ordered list of label-key → color mappings that
 ///   are shown as badges next to the start time and severity in each alert row.
+/// - **Analyze**: the user-defined shell command run by each alert row's
+///   "Analyze" action (`SettingsManager.analyzeCommand`).
 ///
 /// Changes to `refreshIntervalMinutes` propagate to `ContentView`, which
 /// restarts all polling timers via its `.onChange` hook.
@@ -142,6 +144,27 @@ struct SettingsView: View {
                 }
             } header: {
                 Text("Labels")
+            }
+
+            Section {
+                // Shell command run by the "Analyze" action in each alert row.
+                // Multi-line so heredoc-style invocations fit. While empty the
+                // Analyze button is hidden.
+                TextEditor(text: $settings.analyzeCommand)
+                    .font(.system(.body, design: .monospaced))
+                    .frame(minHeight: 120)
+                    .accessibilityIdentifier("settings-analyze-command-editor")
+            } header: {
+                Text("Analyze")
+            } footer: {
+                Text(
+                    "Run when the Analyze button is clicked. "
+                        + "`{{markdown}}` is replaced with the alert as Markdown and "
+                        + "`{{filename}}` with the file the analysis should be written to. "
+                        + "The command runs with the analyses folder as its working directory."
+                )
+                .font(.caption)
+                .foregroundColor(.secondary)
             }
         }
         .formStyle(.grouped)
