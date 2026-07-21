@@ -22,6 +22,10 @@ struct ExportSettings: Codable {
     /// Whether the alertmanager name prefix is shown in the alert row title.
     /// `nil` when absent so older export files import without error.
     let showAlertmanagerName: Bool?
+    /// User-defined "Analyze" command. `nil` when absent so older export
+    /// files import without error. The output directory is intentionally
+    /// **not** exported — it is a fixed, machine-local path.
+    let analyzeCommand: String?
 }
 
 /// Top-level shape of the JSON file produced by `exportData` and
@@ -146,7 +150,7 @@ struct ExportFilter: Codable {
 /// JSON document and restores it on import.
 ///
 /// Conventions:
-/// - **Format version**: `"1.0"`.
+/// - **Format version**: `"1.1"`.
 /// - **Dates**: ISO-8601.
 /// - **JSON style**: pretty-printed, sorted keys (stable diffs).
 /// - **References**: filters reference alertmanagers by name, not UUID,
@@ -205,7 +209,8 @@ class ImportExportManager {
             menuBarEnabled: settings.menuBarEnabled,
             menuBarFilterName: menuBarFilterName,
             labelBadgeConfigs: settings.labelBadgeConfigs,
-            showAlertmanagerName: settings.showAlertmanagerName
+            showAlertmanagerName: settings.showAlertmanagerName,
+            analyzeCommand: settings.analyzeCommand
         )
 
         let exportData = ExportData(
@@ -213,7 +218,7 @@ class ImportExportManager {
             filters: exportFilters,
             settings: exportSettings,
             exportDate: Date(),
-            version: "1.0"
+            version: "1.1"
         )
 
         let encoder = JSONEncoder()
@@ -355,6 +360,9 @@ class ImportExportManager {
             }
             if let showAlertmanagerName = exportDataSettings.showAlertmanagerName {
                 settings.showAlertmanagerName = showAlertmanagerName
+            }
+            if let analyzeCommand = exportDataSettings.analyzeCommand {
+                settings.analyzeCommand = analyzeCommand
             }
             settingsRestored = true
         }

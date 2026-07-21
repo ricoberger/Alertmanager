@@ -24,6 +24,9 @@ and [Grafana Alerting](https://grafana.com/docs/grafana/latest/alerting/).
   panels (`__dashboardUid__` / `__panelId__` annotations)
 - Copy any alert as Markdown — including the backend URL, resolved credentials,
   labels, and annotations — ready to paste into chats, issues, or runbooks
+- Analyze alerts with a custom command (e.g. an AI agent): runs a user-defined
+  command with the alert Markdown and a target filename substituted in, then
+  opens the resulting analysis file once it is written
 - Custom label badges: map label keys to colors in the settings to surface
   matching label values next to the alert title
 - Configurable refresh interval (1 minute to 1 hour)

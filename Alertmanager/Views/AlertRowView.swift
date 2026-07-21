@@ -20,6 +20,11 @@ import SwiftUI
 /// - **Runbook**: `annotations["runbook_url"]`.
 /// - **Dashboard / Panel** (Grafana only): built from
 ///   `__dashboardUid__` / `__panelId__` annotations.
+/// - **Analyze / Analysis**: runs the user-defined command from
+///   `SettingsManager.analyzeCommand` (see `AnalysisManager`), showing a
+///   spinner while the process runs, when no analysis file exists yet;
+///   otherwise opens the existing file. Hidden entirely when no command is
+///   configured.
 ///
 /// All URLs are opened via `NSWorkspace.shared.open(_:)`.
 struct AlertRowView: View {
@@ -53,6 +58,16 @@ struct AlertRowView: View {
     /// Briefly `true` after a successful copy. Flips the copy icon to a
     /// checkmark for a moment as confirmation feedback.
     @State private var didCopy: Bool = false
+
+    /// Whether an analysis file already exists for this alert. Drives the
+    /// "Analyze" vs. "Analysis" state of the analyze button. Recomputed on
+    /// appear and whenever `.analysisFilesDidChange` fires.
+    @State private var hasAnalysis: Bool = false
+
+    /// Whether the analyze command is currently running for this alert.
+    /// Drives the spinner/disabled state of the button. Recomputed on appear
+    /// and whenever `.analysisRunsDidChange` fires.
+    @State private var isAnalyzing: Bool = false
 
     /// User-configured label badge mappings, observed from `SettingsManager`.
     @ObservedObject private var settings = SettingsManager.shared
@@ -304,6 +319,48 @@ struct AlertRowView: View {
                             .buttonStyle(.borderedProminent)
                         }
 
+                        // Analyze / Analysis. Shown only when a global analyze
+                        // command is configured. With no file yet it launches
+                        // that command fire-and-forget (showing a spinner while
+                        // the process runs); once the resulting file exists it
+                        // opens it. Both states flip automatically via the
+                        // `.analysisRunsDidChange` / `.analysisFilesDidChange`
+                        // watcher notifications.
+                        if !settings.analyzeCommand.trimmingCharacters(in: .whitespacesAndNewlines)
+                            .isEmpty
+                        {
+                            Button(action: {
+                                if hasAnalysis {
+                                    openAnalysis()
+                                } else {
+                                    Task { await AnalysisManager.shared.analyze(for: alert, alertmanager: alertmanager) }
+                                }
+                            }) {
+                                HStack(spacing: 4) {
+                                    if isAnalyzing {
+                                        ProgressView()
+                                            .controlSize(.mini)
+                                    } else {
+                                        Image(
+                                            systemName: hasAnalysis
+                                                ? "doc.text.magnifyingglass" : "sparkles"
+                                        )
+                                        .font(.system(size: 10))
+                                    }
+                                    Text(
+                                        isAnalyzing
+                                            ? "Analyzing…" : (hasAnalysis ? "Analysis" : "Analyze")
+                                    )
+                                    .font(.caption)
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(isAnalyzing)
+                            .accessibilityIdentifier("alert-row-analyze")
+                        }
+
                         Spacer()
                     }
                     .padding(.horizontal)
@@ -320,6 +377,14 @@ struct AlertRowView: View {
         .accessibilityIdentifier("alert-row-\(alert.alertName)")
         .onAppear {
             isExpandedState = isExpanded
+            hasAnalysis = AnalysisManager.shared.analysisExists(for: alert)
+            isAnalyzing = AnalysisManager.shared.isRunning(for: alert)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .analysisFilesDidChange)) { _ in
+            hasAnalysis = AnalysisManager.shared.analysisExists(for: alert)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .analysisRunsDidChange)) { _ in
+            isAnalyzing = AnalysisManager.shared.isRunning(for: alert)
         }
     }
 
@@ -483,6 +548,14 @@ struct AlertRowView: View {
         didCopy = true
         try? await Task.sleep(nanoseconds: 1_500_000_000)
         didCopy = false
+    }
+
+    /// Opens the existing analysis file for this alert with the user's default
+    /// Markdown handler. Delegates to `AnalysisManager`, which uses
+    /// `/usr/bin/open` so wrapper handlers (e.g. an Automator app that opens an
+    /// editor in a terminal) receive the file instead of launching blank.
+    private func openAnalysis() {
+        AnalysisManager.shared.openAnalysis(for: alert)
     }
 
     /// Opens a specific Grafana panel using `__dashboardUid__` and

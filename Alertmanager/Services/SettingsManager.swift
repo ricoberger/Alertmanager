@@ -117,6 +117,18 @@ class SettingsManager: ObservableObject {
         }
     }
 
+    /// User-defined shell command run by the "Analyze" action in each alert
+    /// row. Executed via `/bin/sh -c` (see `AnalysisManager`) after the
+    /// `{{markdown}}` and `{{filename}}` placeholders are substituted.
+    ///
+    /// Empty by default — while empty the "Analyze" button is hidden.
+    /// Mirrored to the `"analyzeCommand"` `UserDefaults` key.
+    @Published var analyzeCommand: String {
+        didSet {
+            UserDefaults.standard.set(analyzeCommand, forKey: "analyzeCommand")
+        }
+    }
+
     /// Loads each preference from `UserDefaults`, applying defaults when
     /// the key is absent (60s refresh, menu bar enabled, no filter).
     private init() {
@@ -135,6 +147,8 @@ class SettingsManager: ObservableObject {
         } else {
             self.labelBadgeConfigs = []
         }
+
+        self.analyzeCommand = UserDefaults.standard.string(forKey: "analyzeCommand") ?? ""
     }
 
     /// Convenience accessor that exposes `refreshInterval` in whole

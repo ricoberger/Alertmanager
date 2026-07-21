@@ -13,6 +13,19 @@ extension Notification.Name {
     /// affected alertmanager so observers can scope their reactions.
     static let alertsDidUpdate = Notification.Name("alertsDidUpdate")
 
+    /// Posted by `AnalysisManager` when the contents of its output
+    /// directory change (an analysis file was created, replaced, or
+    /// removed). Carries no `userInfo`; observing `AlertRowView`s re-check
+    /// their own expected filename to update the "Analyze"/"Analysis"
+    /// button state.
+    static let analysisFilesDidChange = Notification.Name("analysisFilesDidChange")
+
+    /// Posted by `AnalysisManager` when its set of in-flight command runs
+    /// changes (a run started or finished). Carries no `userInfo`; observing
+    /// `AlertRowView`s re-check whether their own alert is running to toggle
+    /// the "Analyzing…" spinner.
+    static let analysisRunsDidChange = Notification.Name("analysisRunsDidChange")
+
     /// Posted by the "Export Configuration" menu command in
     /// `AlertmanagerApp`; observed by `ContentView`.
     static let exportConfiguration = Notification.Name("exportConfiguration")
