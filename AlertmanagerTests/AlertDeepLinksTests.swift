@@ -159,7 +159,8 @@ struct AlertDeepLinksSilenceGrafanaTests {
 
     @Test("Uses /alerting/silence/new path")
     func grafanaSilencePath() {
-        let am = makeAlertmanager(url: "https://grafana.example.com", isGrafana: true, grafanaAlertmanager: "mimir")
+        let am = makeAlertmanager(
+            url: "https://grafana.example.com", isGrafana: true, grafanaAlertmanager: "mimir")
         let alert = makeAlert(labels: ["severity": "critical"])
         let url = AlertDeepLinks.silenceURL(for: alert, alertmanager: am)
         #expect(url.contains("/alerting/silence/new"))
@@ -167,31 +168,38 @@ struct AlertDeepLinksSilenceGrafanaTests {
 
     @Test("alertmanager parameter uses resolvedDatasourceName when provided")
     func usesResolvedName() {
-        let am = makeAlertmanager(url: "https://grafana.example.com", isGrafana: true, grafanaAlertmanager: "uid-123")
+        let am = makeAlertmanager(
+            url: "https://grafana.example.com", isGrafana: true, grafanaAlertmanager: "uid-123")
         let alert = makeAlert(labels: [:])
-        let url = AlertDeepLinks.silenceURL(for: alert, alertmanager: am, resolvedDatasourceName: "MyMimir")
+        let url = AlertDeepLinks.silenceURL(
+            for: alert, alertmanager: am, resolvedDatasourceName: "MyMimir")
         #expect(url.contains("alertmanager=MyMimir"))
     }
 
     @Test("alertmanager falls back to grafanaAlertmanager when resolvedName is nil")
     func fallsToConfigured() {
-        let am = makeAlertmanager(url: "https://grafana.example.com", isGrafana: true, grafanaAlertmanager: "fallback-am")
+        let am = makeAlertmanager(
+            url: "https://grafana.example.com", isGrafana: true, grafanaAlertmanager: "fallback-am")
         let alert = makeAlert(labels: [:])
-        let url = AlertDeepLinks.silenceURL(for: alert, alertmanager: am, resolvedDatasourceName: nil)
+        let url = AlertDeepLinks.silenceURL(
+            for: alert, alertmanager: am, resolvedDatasourceName: nil)
         #expect(url.contains("alertmanager=fallback-am"))
     }
 
     @Test("alertmanager falls back to empty string when all sources are nil/empty")
     func fallsToEmpty() {
-        let am = makeAlertmanager(url: "https://grafana.example.com", isGrafana: true, grafanaAlertmanager: "")
+        let am = makeAlertmanager(
+            url: "https://grafana.example.com", isGrafana: true, grafanaAlertmanager: "")
         let alert = makeAlert(labels: [:])
-        let url = AlertDeepLinks.silenceURL(for: alert, alertmanager: am, resolvedDatasourceName: nil)
+        let url = AlertDeepLinks.silenceURL(
+            for: alert, alertmanager: am, resolvedDatasourceName: nil)
         #expect(url.contains("alertmanager=&") || url.hasSuffix("alertmanager="))
     }
 
     @Test("Each label becomes matcher=key%3Dvalue")
     func matcherFormat() {
-        let am = makeAlertmanager(url: "https://grafana.example.com", isGrafana: true, grafanaAlertmanager: "am")
+        let am = makeAlertmanager(
+            url: "https://grafana.example.com", isGrafana: true, grafanaAlertmanager: "am")
         let alert = makeAlert(labels: ["severity": "critical"])
         let url = AlertDeepLinks.silenceURL(for: alert, alertmanager: am)
         #expect(url.contains("matcher=severity%3Dcritical"))
@@ -199,7 +207,8 @@ struct AlertDeepLinksSilenceGrafanaTests {
 
     @Test("Label values with special chars are percent-encoded in Grafana URL")
     func grafanaSpecialCharsEncoded() {
-        let am = makeAlertmanager(url: "https://grafana.example.com", isGrafana: true, grafanaAlertmanager: "am")
+        let am = makeAlertmanager(
+            url: "https://grafana.example.com", isGrafana: true, grafanaAlertmanager: "am")
         // Use a space — spaces are NOT in urlQueryAllowed and must be encoded
         let alert = makeAlert(labels: ["k": "value with spaces"])
         let url = AlertDeepLinks.silenceURL(for: alert, alertmanager: am)
@@ -208,7 +217,8 @@ struct AlertDeepLinksSilenceGrafanaTests {
 
     @Test("Labels are sorted by key")
     func grafanaLabelsSorted() {
-        let am = makeAlertmanager(url: "https://grafana.example.com", isGrafana: true, grafanaAlertmanager: "am")
+        let am = makeAlertmanager(
+            url: "https://grafana.example.com", isGrafana: true, grafanaAlertmanager: "am")
         let alert = makeAlert(labels: ["z_key": "z", "a_key": "a"])
         let url = AlertDeepLinks.silenceURL(for: alert, alertmanager: am)
         let aPos = url.range(of: "a_key")!.lowerBound

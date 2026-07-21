@@ -151,7 +151,9 @@ final class APIServer {
         } catch {
             // Per design: surface bind failures (e.g. port in use) via print
             // only, consistent with the codebase's logging style.
-            print("APIServer: failed to start listener on port \(port): \(error.localizedDescription)")
+            print(
+                "APIServer: failed to start listener on port \(port): \(error.localizedDescription)"
+            )
         }
     }
 
@@ -557,15 +559,17 @@ final class APIServer {
     /// context is unavailable / the fetch fails.
     private func fetchAlertmanagers() -> [Alertmanager] {
         guard let modelContext else { return [] }
-        return (try? modelContext.fetch(
-            FetchDescriptor<Alertmanager>(sortBy: [SortDescriptor(\.sortOrder)]))) ?? []
+        return
+            (try? modelContext.fetch(
+                FetchDescriptor<Alertmanager>(sortBy: [SortDescriptor(\.sortOrder)]))) ?? []
     }
 
     /// Fetches all filters ordered by `sortOrder`, or `[]` on failure.
     private func fetchFilters() -> [Filter] {
         guard let modelContext else { return [] }
-        return (try? modelContext.fetch(
-            FetchDescriptor<Filter>(sortBy: [SortDescriptor(\.sortOrder)]))) ?? []
+        return
+            (try? modelContext.fetch(
+                FetchDescriptor<Filter>(sortBy: [SortDescriptor(\.sortOrder)]))) ?? []
     }
 
     /// Resolves an alertmanager by its UUID string, or `nil` if the string is
@@ -601,7 +605,9 @@ final class APIServer {
     /// drops names that don't match the analysis-file pattern, and returns the
     /// results sorted newest-first by parsed start time. Extracted so the
     /// filtering/sorting is unit-testable without touching the filesystem.
-    nonisolated static func analysisFiles(from entries: [(name: String, path: String, markdown: String?)])
+    nonisolated static func analysisFiles(
+        from entries: [(name: String, path: String, markdown: String?)]
+    )
         -> [APIAnalysisFile]
     {
         entries

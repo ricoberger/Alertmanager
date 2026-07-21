@@ -81,8 +81,9 @@ struct FilterFormView: View {
                                         selectedAlertmanagers.remove(alertmanager.id)
                                     }
                                 }
-                            ))
-                            .accessibilityIdentifier("filter-am-toggle-\(alertmanager.name)")
+                            )
+                        )
+                        .accessibilityIdentifier("filter-am-toggle-\(alertmanager.name)")
                     }
                 }
             }

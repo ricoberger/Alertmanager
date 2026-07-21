@@ -126,7 +126,8 @@ final class ImportExportRoundTripTests: XCTestCase {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
             if FileManager.default.fileExists(atPath: url.path) {
-                return (try? FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate])
+                return
+                    (try? FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate])
                     as? Date ?? Date()
             }
             Thread.sleep(forTimeInterval: 0.2)

@@ -235,7 +235,8 @@ struct AlertAggregatorAlertsWithSourcesTests {
         )
         #expect(result.count == 2)
         // am1 is first in sidebar order, so its copy of "shared" wins.
-        #expect(result.first(where: { $0.alert.fingerprint == "shared" })?.alertmanager.id == am1.id)
+        #expect(
+            result.first(where: { $0.alert.fingerprint == "shared" })?.alertmanager.id == am1.id)
         #expect(result.first(where: { $0.alert.fingerprint == "only2" })?.alertmanager.id == am2.id)
     }
 
@@ -247,7 +248,8 @@ struct AlertAggregatorAlertsWithSourcesTests {
         // alerts(for:from:orderedAlertmanagerIDs:) produces.
         let am1 = makeAlertmanager(name: "am1")
         let am2 = makeAlertmanager(name: "am2")
-        let filter = Filter(name: "f", selectedAlertmanagerIDs: [am1.id, am2.id], states: [.active])
+        let filter = Filter(
+            name: "f", selectedAlertmanagerIDs: [am1.id, am2.id], states: [.active])
         let cache: [UUID: [GettableAlert]] = [
             am1.id: [makeAlert(fingerprint: "shared", state: .suppressed)],
             am2.id: [makeAlert(fingerprint: "shared", state: .active)],

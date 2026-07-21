@@ -80,7 +80,8 @@ struct ExportAuthTypeDecodeTests {
 
     @Test("Decodes 'basicAuth' type")
     func decodesBasicAuth() throws {
-        let json = #"{"type":"basicAuth","username":"alice","password":"secret"}"#.data(using: .utf8)!
+        let json = #"{"type":"basicAuth","username":"alice","password":"secret"}"#.data(
+            using: .utf8)!
         let v = try JSONDecoder().decode(ExportAuthType.self, from: json)
         #expect(v == .basicAuth(username: "alice", password: "secret"))
     }
@@ -134,7 +135,8 @@ struct ImportExportRoundTripTests {
         context.insert(am2)
         try context.save()
 
-        let data = try #require(ImportExportManager.exportData(alertmanagers: [am1, am2], filters: []))
+        let data = try #require(
+            ImportExportManager.exportData(alertmanagers: [am1, am2], filters: []))
 
         let freshContainer = try makeInMemoryContainer()
         let freshContext = ModelContext(freshContainer)
@@ -173,7 +175,8 @@ struct ImportExportRoundTripTests {
         context.insert(filter)
         try context.save()
 
-        let data = try #require(ImportExportManager.exportData(alertmanagers: [am], filters: [filter]))
+        let data = try #require(
+            ImportExportManager.exportData(alertmanagers: [am], filters: [filter]))
 
         let freshContainer = try makeInMemoryContainer()
         let freshContext = ModelContext(freshContainer)
@@ -293,21 +296,21 @@ struct ImportExportRoundTripTests {
     func unknownAlertmanagerNameDropped() throws {
         // Build an export that references an alertmanager name not present in the import target
         let exportJSON = """
-        {
-            "alertmanagers": [],
-            "filters": [
-                {
-                    "name": "OrphanFilter",
-                    "alertmanagerNames": ["NonExistent"],
-                    "states": ["active"],
-                    "receivers": [],
-                    "labelMatchers": []
-                }
-            ],
-            "exportDate": "2024-01-01T00:00:00Z",
-            "version": "1.0"
-        }
-        """.data(using: .utf8)!
+            {
+                "alertmanagers": [],
+                "filters": [
+                    {
+                        "name": "OrphanFilter",
+                        "alertmanagerNames": ["NonExistent"],
+                        "states": ["active"],
+                        "receivers": [],
+                        "labelMatchers": []
+                    }
+                ],
+                "exportDate": "2024-01-01T00:00:00Z",
+                "version": "1.0"
+            }
+            """.data(using: .utf8)!
 
         let freshContainer = try makeInMemoryContainer()
         let freshContext = ModelContext(freshContainer)
@@ -328,21 +331,21 @@ struct ImportExportRoundTripTests {
     @MainActor
     func unknownAlertStateDropped() throws {
         let exportJSON = """
-        {
-            "alertmanagers": [],
-            "filters": [
-                {
-                    "name": "TestFilter",
-                    "alertmanagerNames": [],
-                    "states": ["active", "bogusState"],
-                    "receivers": [],
-                    "labelMatchers": []
-                }
-            ],
-            "exportDate": "2024-01-01T00:00:00Z",
-            "version": "1.0"
-        }
-        """.data(using: .utf8)!
+            {
+                "alertmanagers": [],
+                "filters": [
+                    {
+                        "name": "TestFilter",
+                        "alertmanagerNames": [],
+                        "states": ["active", "bogusState"],
+                        "receivers": [],
+                        "labelMatchers": []
+                    }
+                ],
+                "exportDate": "2024-01-01T00:00:00Z",
+                "version": "1.0"
+            }
+            """.data(using: .utf8)!
 
         let freshContainer = try makeInMemoryContainer()
         let freshContext = ModelContext(freshContainer)
@@ -363,24 +366,24 @@ struct ImportExportRoundTripTests {
     @MainActor
     func unknownOperatorDropped() throws {
         let exportJSON = """
-        {
-            "alertmanagers": [],
-            "filters": [
-                {
-                    "name": "TestFilter",
-                    "alertmanagerNames": [],
-                    "states": [],
-                    "receivers": [],
-                    "labelMatchers": [
-                        {"key": "severity", "op": "=", "value": "critical"},
-                        {"key": "namespace", "op": "??", "value": "prod"}
-                    ]
-                }
-            ],
-            "exportDate": "2024-01-01T00:00:00Z",
-            "version": "1.0"
-        }
-        """.data(using: .utf8)!
+            {
+                "alertmanagers": [],
+                "filters": [
+                    {
+                        "name": "TestFilter",
+                        "alertmanagerNames": [],
+                        "states": [],
+                        "receivers": [],
+                        "labelMatchers": [
+                            {"key": "severity", "op": "=", "value": "critical"},
+                            {"key": "namespace", "op": "??", "value": "prod"}
+                        ]
+                    }
+                ],
+                "exportDate": "2024-01-01T00:00:00Z",
+                "version": "1.0"
+            }
+            """.data(using: .utf8)!
 
         let freshContainer = try makeInMemoryContainer()
         let freshContext = ModelContext(freshContainer)
@@ -402,17 +405,17 @@ struct ImportExportRoundTripTests {
     @MainActor
     func defaultsWhenAbsent() throws {
         let exportJSON = """
-        {
-            "alertmanagers": [
-                {"name": "A", "url": "http://a.example.com", "isGrafana": false, "grafanaAlertmanager": "", "authType": {"type": "none"}}
-            ],
-            "filters": [
-                {"name": "F", "alertmanagerNames": [], "states": [], "receivers": [], "labelMatchers": []}
-            ],
-            "exportDate": "2024-01-01T00:00:00Z",
-            "version": "1.0"
-        }
-        """.data(using: .utf8)!
+            {
+                "alertmanagers": [
+                    {"name": "A", "url": "http://a.example.com", "isGrafana": false, "grafanaAlertmanager": "", "authType": {"type": "none"}}
+                ],
+                "filters": [
+                    {"name": "F", "alertmanagerNames": [], "states": [], "receivers": [], "labelMatchers": []}
+                ],
+                "exportDate": "2024-01-01T00:00:00Z",
+                "version": "1.0"
+            }
+            """.data(using: .utf8)!
 
         let freshContainer = try makeInMemoryContainer()
         let freshContext = ModelContext(freshContainer)
@@ -472,17 +475,17 @@ struct ImportExportRoundTripTests {
         defer { snapshot.restore() }
 
         let exportJSON = """
-        {
-            "alertmanagers": [],
-            "filters": [],
-            "settings": {
-                "refreshInterval": 120,
-                "menuBarEnabled": true
-            },
-            "exportDate": "2024-01-01T00:00:00Z",
-            "version": "1.0"
-        }
-        """.data(using: .utf8)!
+            {
+                "alertmanagers": [],
+                "filters": [],
+                "settings": {
+                    "refreshInterval": 120,
+                    "menuBarEnabled": true
+                },
+                "exportDate": "2024-01-01T00:00:00Z",
+                "version": "1.0"
+            }
+            """.data(using: .utf8)!
 
         let freshContainer = try makeInMemoryContainer()
         let freshContext = ModelContext(freshContainer)
@@ -500,13 +503,13 @@ struct ImportExportRoundTripTests {
     @MainActor
     func settingsNotRestoredWhenAbsent() throws {
         let exportJSON = """
-        {
-            "alertmanagers": [],
-            "filters": [],
-            "exportDate": "2024-01-01T00:00:00Z",
-            "version": "1.0"
-        }
-        """.data(using: .utf8)!
+            {
+                "alertmanagers": [],
+                "filters": [],
+                "exportDate": "2024-01-01T00:00:00Z",
+                "version": "1.0"
+            }
+            """.data(using: .utf8)!
 
         let freshContainer = try makeInMemoryContainer()
         let freshContext = ModelContext(freshContainer)

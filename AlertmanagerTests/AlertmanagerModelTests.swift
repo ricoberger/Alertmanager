@@ -29,7 +29,8 @@ struct AlertmanagerAuthTypeTests {
         let container = try makeInMemoryContainer()
         let context = ModelContext(container)
 
-        let am = Alertmanager(name: "test", url: "http://a.example.com", authType: AuthenticationType.none)
+        let am = Alertmanager(
+            name: "test", url: "http://a.example.com", authType: AuthenticationType.none)
         context.insert(am)
         try context.save()
 
@@ -106,7 +107,8 @@ struct AlertmanagerAuthTypeTests {
         try context.save()
 
         let fetched = try context.fetch(FetchDescriptor<Alertmanager>())
-        #expect(fetched.first?.authType == .tokenAuth(tokenSource: .command(command: "get-token.sh")))
+        #expect(
+            fetched.first?.authType == .tokenAuth(tokenSource: .command(command: "get-token.sh")))
     }
 
     @Test("authType falls back to .none when backing data is nil")
@@ -118,7 +120,8 @@ struct AlertmanagerAuthTypeTests {
         // Start with a valid authType, save, then explicitly corrupt the
         // backing Data by setting authType to .none and confirming the
         // round-trip default.
-        let am = Alertmanager(name: "test", url: "http://f.example.com", authType: AuthenticationType.none)
+        let am = Alertmanager(
+            name: "test", url: "http://f.example.com", authType: AuthenticationType.none)
         context.insert(am)
         try context.save()
 

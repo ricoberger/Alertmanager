@@ -94,19 +94,24 @@ enum AlertDeepLinks {
                 ?? ""
             var matchers: [String] = []
             for (key, value) in sortedLabels {
-                if let encodedKey = key.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-                    let encodedValue = value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
+                if let encodedKey = key.addingPercentEncoding(
+                    withAllowedCharacters: .urlQueryAllowed),
+                    let encodedValue = value.addingPercentEncoding(
+                        withAllowedCharacters: .urlQueryAllowed)
                 {
                     matchers.append("matcher=\(encodedKey)%3D\(encodedValue)")
                 }
             }
             let matchersQuery = matchers.joined(separator: "&")
-            return "\(alertmanager.url)/alerting/silence/new?alertmanager=\(alertmanagerName)&\(matchersQuery)"
+            return
+                "\(alertmanager.url)/alerting/silence/new?alertmanager=\(alertmanagerName)&\(matchersQuery)"
         } else {
             var labelPairs: [String] = []
             for (key, value) in sortedLabels {
-                if let encodedKey = key.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-                    let encodedValue = value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
+                if let encodedKey = key.addingPercentEncoding(
+                    withAllowedCharacters: .urlQueryAllowed),
+                    let encodedValue = value.addingPercentEncoding(
+                        withAllowedCharacters: .urlQueryAllowed)
                 {
                     labelPairs.append("\(encodedKey)%3D%22\(encodedValue)%22")
                 }
@@ -135,7 +140,9 @@ enum AlertDeepLinks {
     ///   - dashboardUID: The `__dashboardUid__` annotation value.
     ///   - panelId: The `__panelId__` annotation value.
     /// - Returns: `"{url}/d/{dashboardUID}?viewPanel={panelId}"`.
-    static func panelURL(alertmanager: Alertmanager, dashboardUID: String, panelId: String) -> String {
+    static func panelURL(alertmanager: Alertmanager, dashboardUID: String, panelId: String)
+        -> String
+    {
         "\(alertmanager.url)/d/\(dashboardUID)?viewPanel=\(panelId)"
     }
 }
