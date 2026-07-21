@@ -265,14 +265,17 @@ struct FilterApplyTests {
     @Test("Empty receivers array: all alerts pass receiver predicate")
     func emptyReceiversMatchAll() {
         let filter = Filter(name: "f", selectedAlertmanagerIDs: [], states: [], receivers: [])
-        let alerts = [makeAlert(receiverNames: ["slack"]), makeAlert(fingerprint: "fp2", receiverNames: [])]
+        let alerts = [
+            makeAlert(receiverNames: ["slack"]), makeAlert(fingerprint: "fp2", receiverNames: []),
+        ]
         let result = filter.apply(to: alerts)
         #expect(result.count == 2)
     }
 
     @Test("Non-empty receivers: alert passes if any receiver matches")
     func receiversIntersection() {
-        let filter = Filter(name: "f", selectedAlertmanagerIDs: [], states: [], receivers: ["slack"])
+        let filter = Filter(
+            name: "f", selectedAlertmanagerIDs: [], states: [], receivers: ["slack"])
         let alerts = [
             makeAlert(fingerprint: "a", receiverNames: ["slack", "email"]),
             makeAlert(fingerprint: "b", receiverNames: ["pager"]),
@@ -287,7 +290,9 @@ struct FilterApplyTests {
     @Test("Empty labelMatchers: all alerts pass")
     func emptyMatchersMatchAll() {
         let filter = Filter(name: "f", selectedAlertmanagerIDs: [], states: [], labelMatchers: [])
-        let alerts = [makeAlert(labels: ["foo": "bar"]), makeAlert(fingerprint: "fp2", labels: [:])]
+        let alerts = [
+            makeAlert(labels: ["foo": "bar"]), makeAlert(fingerprint: "fp2", labels: [:]),
+        ]
         let result = filter.apply(to: alerts)
         #expect(result.count == 2)
     }

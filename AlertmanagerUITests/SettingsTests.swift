@@ -35,7 +35,8 @@ final class SettingsTests: XCTestCase {
     @MainActor
     func testSettingsWindowOpens() throws {
         let win = openSettings()
-        XCTAssertTrue(win.popUpButtons["settings-refresh-interval-picker"].waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            win.popUpButtons["settings-refresh-interval-picker"].waitForExistence(timeout: 5))
     }
 
     @MainActor
@@ -51,7 +52,8 @@ final class SettingsTests: XCTestCase {
     @MainActor
     func testShowAlertmanagerNameToggleExists() throws {
         _ = openSettings()
-        let predicate = NSPredicate(format: "identifier == 'settings-show-alertmanager-name-toggle'")
+        let predicate = NSPredicate(
+            format: "identifier == 'settings-show-alertmanager-name-toggle'")
         let toggle = app.descendants(matching: .any).matching(predicate).firstMatch
         XCTAssertTrue(toggle.waitForExistence(timeout: 30))
     }

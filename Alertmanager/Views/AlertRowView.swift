@@ -333,7 +333,10 @@ struct AlertRowView: View {
                                 if hasAnalysis {
                                     openAnalysis()
                                 } else {
-                                    Task { await AnalysisManager.shared.analyze(for: alert, alertmanager: alertmanager) }
+                                    Task {
+                                        await AnalysisManager.shared.analyze(
+                                            for: alert, alertmanager: alertmanager)
+                                    }
                                 }
                             }) {
                                 HStack(spacing: 4) {

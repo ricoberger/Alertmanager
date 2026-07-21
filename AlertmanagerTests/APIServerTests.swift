@@ -106,7 +106,9 @@ struct APIRouteMatchTests {
 
     @Test("Alert list routes carry the id")
     func alertLists() {
-        #expect(APIRoute.match(["api", "alertmanagers", "AM", "alerts"]) == .alertmanagerAlerts(id: "AM"))
+        #expect(
+            APIRoute.match(["api", "alertmanagers", "AM", "alerts"])
+                == .alertmanagerAlerts(id: "AM"))
         #expect(APIRoute.match(["api", "filters", "F", "alerts"]) == .filterAlerts(id: "F"))
     }
 

@@ -31,21 +31,21 @@ private func makeAlertJSON(
 ) -> Data {
     let mutedByClause = mutedByField.map { ",\"mutedBy\":\($0)" } ?? ""
     let json = """
-    {
-        "annotations": \(annotations),
-        "receivers": \(receivers),
-        "fingerprint": "\(fingerprint)",
-        "startsAt": "\(startsAt)",
-        "updatedAt": "\(updatedAt)",
-        "endsAt": "\(endsAt)",
-        "status": {
-            "state": "\(state)",
-            "silencedBy": \(silencedBy),
-            "inhibitedBy": \(inhibitedBy)\(mutedByClause)
-        },
-        "labels": \(labels)
-    }
-    """
+        {
+            "annotations": \(annotations),
+            "receivers": \(receivers),
+            "fingerprint": "\(fingerprint)",
+            "startsAt": "\(startsAt)",
+            "updatedAt": "\(updatedAt)",
+            "endsAt": "\(endsAt)",
+            "status": {
+                "state": "\(state)",
+                "silencedBy": \(silencedBy),
+                "inhibitedBy": \(inhibitedBy)\(mutedByClause)
+            },
+            "labels": \(labels)
+        }
+        """
     return json.data(using: .utf8)!
 }
 
@@ -70,7 +70,10 @@ struct AlertStatusTests {
 
     @Test("Decodes all three alert states")
     func decodesAlertStates() throws {
-        for (raw, expected) in [("active", AlertState.active), ("suppressed", .suppressed), ("unprocessed", .unprocessed)] {
+        for (raw, expected) in [
+            ("active", AlertState.active), ("suppressed", .suppressed),
+            ("unprocessed", .unprocessed),
+        ] {
             let data = makeAlertJSON(state: raw)
             let alert = try iso8601Decoder.decode(GettableAlert.self, from: data)
             #expect(alert.status.state == expected)

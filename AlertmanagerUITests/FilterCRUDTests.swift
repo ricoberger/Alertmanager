@@ -94,7 +94,8 @@ final class FilterCRUDTests: XCTestCase {
 
         // Each alertmanager Toggle has identifier "filter-am-toggle-<name>".
         // Use .any + NSPredicate to avoid element-type mismatch.
-        let togglePredicate = NSPredicate(format: "identifier == 'filter-am-toggle-\(helperAMName)'")
+        let togglePredicate = NSPredicate(
+            format: "identifier == 'filter-am-toggle-\(helperAMName)'")
         let amToggle = app.descendants(matching: .any).matching(togglePredicate).firstMatch
         if amToggle.waitForExistence(timeout: 10) {
             amToggle.click()
@@ -109,6 +110,7 @@ final class FilterCRUDTests: XCTestCase {
         saveButton.click()
 
         // The sidebar row button identifier is "sidebar-filter-name-<name>".
-        XCTAssertTrue(app.buttons["sidebar-filter-name-\(filterName)"].waitForExistence(timeout: 10))
+        XCTAssertTrue(
+            app.buttons["sidebar-filter-name-\(filterName)"].waitForExistence(timeout: 10))
     }
 }

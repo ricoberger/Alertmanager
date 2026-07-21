@@ -57,8 +57,10 @@ struct SettingsView: View {
 
                 // Whether the alertmanager name is prepended to the alert
                 // title in each row. Disable to show only the alert name.
-                Toggle("Show Alertmanager Name in Alert Title", isOn: $settings.showAlertmanagerName)
-                    .accessibilityIdentifier("settings-show-alertmanager-name-toggle")
+                Toggle(
+                    "Show Alertmanager Name in Alert Title", isOn: $settings.showAlertmanagerName
+                )
+                .accessibilityIdentifier("settings-show-alertmanager-name-toggle")
 
             } header: {
                 Text("General")
@@ -156,15 +158,6 @@ struct SettingsView: View {
                     .accessibilityIdentifier("settings-analyze-command-editor")
             } header: {
                 Text("Analyze")
-            } footer: {
-                Text(
-                    "Run when the Analyze button is clicked. "
-                        + "`{{markdown}}` is replaced with the alert as Markdown and "
-                        + "`{{filename}}` with the file the analysis should be written to. "
-                        + "The command runs with the analyses folder as its working directory."
-                )
-                .font(.caption)
-                .foregroundColor(.secondary)
             }
 
             Section {
@@ -174,14 +167,6 @@ struct SettingsView: View {
                     .accessibilityIdentifier("settings-api-server-enabled-toggle")
             } header: {
                 Text("API Server")
-            } footer: {
-                Text(
-                    "Expose alerts, filters, and the Analyze action to other "
-                        + "applications on this machine over HTTP at "
-                        + "`http://127.0.0.1:9093`. Loopback only, no authentication."
-                )
-                .font(.caption)
-                .foregroundColor(.secondary)
             }
         }
         .formStyle(.grouped)

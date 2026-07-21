@@ -284,7 +284,10 @@ extension LabelMatcher {
         // without an operator), treat the entire query as a regex pattern
         // applied to the `alertname` label.
         if matchers.isEmpty {
-            matchers.append(LabelMatcher(key: "alertname", op: .regexMatch, value: query.trimmingCharacters(in: .whitespaces)))
+            matchers.append(
+                LabelMatcher(
+                    key: "alertname", op: .regexMatch,
+                    value: query.trimmingCharacters(in: .whitespaces)))
         }
 
         return matchers
