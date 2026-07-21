@@ -93,6 +93,38 @@ final class AnalysisManager {
         return "\(sanitized)_\(timestamp).md"
     }
 
+    /// Parses an analysis filename produced by `fileName(for:)` back into its
+    /// components: `<sanitized-alertname>_<yyyyMMddTHHmmssZ>.md`.
+    ///
+    /// The returned `alertName` is the **sanitized** form stored in the file
+    /// name (characters outside `[A-Za-z0-9._-]` were replaced with `-` when
+    /// the file was written), not necessarily the original alert label. The
+    /// timestamp is split at the *last* underscore so alert names that
+    /// themselves contain underscores parse correctly.
+    ///
+    /// - Returns: `nil` when `fileName` doesn't have the expected shape or the
+    ///   timestamp can't be parsed.
+    nonisolated static func parseFileName(_ fileName: String)
+        -> (alertName: String, startsAt: Date)?
+    {
+        guard fileName.hasSuffix(".md") else { return nil }
+        let base = String(fileName.dropLast(3))  // strip ".md"
+
+        guard let underscore = base.range(of: "_", options: .backwards) else { return nil }
+        let namePart = String(base[base.startIndex..<underscore.lowerBound])
+        let stampPart = String(base[underscore.upperBound...])
+        guard !namePart.isEmpty else { return nil }
+
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        formatter.dateFormat = "yyyyMMdd'T'HHmmss'Z'"
+        formatter.isLenient = false
+        guard let date = formatter.date(from: stampPart) else { return nil }
+
+        return (namePart, date)
+    }
+
     /// Absolute URL of the analysis file for `alert` inside `outputDirectory`.
     func fileURL(for alert: GettableAlert) -> URL {
         outputDirectory.appending(path: fileName(for: alert))

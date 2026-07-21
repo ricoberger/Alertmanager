@@ -166,6 +166,23 @@ struct SettingsView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
             }
+
+            Section {
+                // Master toggle for the local HTTP API server (`APIServer`),
+                // which subscribes to this value and starts/stops itself.
+                Toggle("Enabled", isOn: $settings.apiServerEnabled)
+                    .accessibilityIdentifier("settings-api-server-enabled-toggle")
+            } header: {
+                Text("API Server")
+            } footer: {
+                Text(
+                    "Expose alerts, filters, and the Analyze action to other "
+                        + "applications on this machine over HTTP at "
+                        + "`http://127.0.0.1:9093`. Loopback only, no authentication."
+                )
+                .font(.caption)
+                .foregroundColor(.secondary)
+            }
         }
         .formStyle(.grouped)
         // Fixed width plus vertical-only fixedSize gives the standard macOS

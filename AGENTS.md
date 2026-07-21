@@ -75,6 +75,10 @@ Alertmanager/
     ImportExportManager.swift  JSON v1.0 export/import; references by name.
     UpdateCheckService.swift   Singleton. One-shot GitHub release probe that
                                feeds the in-app update banner.
+    APIServer.swift         Singleton. Opt-in loopback HTTP API (NWListener)
+                            exposing alertmanagers/filters/alerts + Analyze.
+    APIModels.swift         Pure HTTP request/response + routing + JSON DTOs
+                            for APIServer (unit-testable, no app state).
   Views/                    SwiftUI views (form sheets, detail panes, rows).
 AlertmanagerTests/          Swift Testing — model + service logic.
 AlertmanagerUITests/        XCTest — driven via accessibilityIdentifiers.
@@ -143,6 +147,24 @@ AlertmanagerUITests/        XCTest — driven via accessibilityIdentifiers.
   (not UUID). This lets an export be re-imported into a store with different
   IDs. Preserve this when changing the export format and bump
   `ExportData.version` on incompatible changes.
+- **HTTP API server (`APIServer`)**: opt-in (off by default;
+  `SettingsManager.apiServerEnabled`). A hand-rolled HTTP/1.1 server on
+  Network.framework's `NWListener` — **no** SPM dependency — bound to
+  `127.0.0.1:9093` (loopback only, **no auth**; port collides with a local
+  Prometheus Alertmanager by design). `APIServer.shared.startFromSettings()`
+  subscribes to the toggle and starts/stops the listener view-independently;
+  `start()` also (idempotently) `startMonitoring`s every AM so responses don't
+  depend on any view having appeared. The class is `@MainActor` for state
+  access; the socket read/write loop is `nonisolated` and hops to the main
+  actor only to route a parsed request. Transport primitives, routing, and the
+  encode-only JSON DTOs live in `APIModels.swift` (pure, unit-tested).
+  Endpoints (`/api`, nested REST): list alertmanagers/filters, alerts per
+  AM/filter (each alert carries curated fields + credential-free markdown +
+  keyed `actions` + `analysis` state + full `raw` payload), `GET /api/analyses`
+  (all analysis files on disk, parsed from filenames), plus `POST …/analyze`
+  (202/409/422/404) and `GET …/analysis`. Bind failures are logged via `print`
+  only. When adding an endpoint, extend `APIRoute.match` (path→route) **and**
+  `APIServer.route` (dispatch) together.
 
 ## Conventions
 
