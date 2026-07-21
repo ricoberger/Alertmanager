@@ -70,6 +70,11 @@ struct AlertmanagerApp: App {
                     // Create the analyses output directory and start watching
                     // it so alert rows can reflect existing/new analysis files.
                     AnalysisManager.shared.start()
+                    // Wire the local HTTP API server to the shared container and
+                    // let it start/stop itself in response to the
+                    // `apiServerEnabled` setting (view-independent lifecycle).
+                    APIServer.shared.configure(with: sharedModelContainer)
+                    APIServer.shared.startFromSettings()
                     // One-shot version probe against the GitHub releases
                     // API. Subsequent `.onAppear` calls within the same
                     // session are no-ops — the banner is a launch hint.

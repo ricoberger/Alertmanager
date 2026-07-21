@@ -129,6 +129,19 @@ class SettingsManager: ObservableObject {
         }
     }
 
+    /// Whether the local HTTP API server (`APIServer`) is running. When
+    /// enabled, `APIServer` binds to `127.0.0.1:9093` and exposes the app's
+    /// alertmanagers, filters, alerts, and the Analyze action to other
+    /// same-machine applications. `APIServer` subscribes to this value and
+    /// starts/stops itself accordingly.
+    ///
+    /// Off by default. Mirrored to the `"apiServerEnabled"` `UserDefaults` key.
+    @Published var apiServerEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(apiServerEnabled, forKey: "apiServerEnabled")
+        }
+    }
+
     /// Loads each preference from `UserDefaults`, applying defaults when
     /// the key is absent (60s refresh, menu bar enabled, no filter).
     private init() {
@@ -149,6 +162,9 @@ class SettingsManager: ObservableObject {
         }
 
         self.analyzeCommand = UserDefaults.standard.string(forKey: "analyzeCommand") ?? ""
+
+        self.apiServerEnabled =
+            UserDefaults.standard.object(forKey: "apiServerEnabled") as? Bool ?? false
     }
 
     /// Convenience accessor that exposes `refreshInterval` in whole
